@@ -257,7 +257,7 @@ class DriveController(private val app: Application) {
             )
         }
         announce(book, s, loc.speed.toDouble())
-        checkOverspeed(book, s, loc.speed * 3.6)
+        checkOverspeed(book, s, loc.speed * 3.6f)
     }
 
     private fun vmax(n: at.beifahrer.pacenote.PaceNote?): Int? {
