@@ -10,6 +10,7 @@ import at.beifahrer.ai.Provider
 import at.beifahrer.data.ElevationClient
 import at.beifahrer.data.CloudHazard
 import at.beifahrer.data.CloudHazards
+import at.beifahrer.data.RouteBudget
 import at.beifahrer.data.Account
 import at.beifahrer.data.AppSettings
 import at.beifahrer.data.SettingsStore
@@ -62,6 +63,7 @@ class DriveController(private val app: Application) {
     val aiVoice = AiVoicePlayer(app)
     private var prepJob: Job? = null
     val cloud = CloudHazards()
+    val routeBudget = RouteBudget()
     val account = Account()
     private var cloudJob: Job? = null
     private val recent = RecentDestinations(app)
@@ -195,6 +197,18 @@ class DriveController(private val app: Application) {
     fun startRoute(dest: Destination) {
         val nav = navigator ?: return showMessage("Navigation wird noch geladen …")
         _state.update { it.copy(mode = Mode.ROUTING, destination = dest, message = null, book = null, current = null) }
+        scope.launch {
+            // Monatsgrenze für alle zusammen (damit es gratis bleibt)
+            if (routeBudget.take() == false) {
+                _state.update { it.copy(mode = Mode.IDLE) }
+                showMessage("Monatsgrenze von ${RouteBudget.LIMIT} Routen erreicht – ab dem 1. geht's wieder. So bleibt die Navigation gratis.")
+                return@launch
+            }
+            startRouteNow(nav, dest)
+        }
+    }
+
+    private fun startRouteNow(nav: Navigator, dest: Destination) {
         val waypoint = try {
             Waypoint.builder().setPlaceIdString(dest.placeId).setTitle(dest.name).build()
         } catch (e: Exception) {

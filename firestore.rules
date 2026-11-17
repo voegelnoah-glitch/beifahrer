@@ -42,5 +42,13 @@ service cloud.firestore {
       // Löschen: nur die eigene Meldung
       allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
+
+    // Gemeinsamer Monatszähler für Routenstarts: nur +1, höchstens 950 (Google: 1.000 Ziele/Monat gratis)
+    match /usage/{month} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['count']) && request.resource.data.count == 1;
+      allow update: if signedIn() && request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1 && request.resource.data.count <= 950;
+    }
   }
 }

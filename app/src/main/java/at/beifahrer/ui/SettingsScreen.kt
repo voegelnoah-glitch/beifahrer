@@ -149,6 +149,10 @@ fun SettingsScreen(st: DriveState, controller: DriveController, onBack: () -> Un
 
             Section("App") {
                 Text("Version ${at.beifahrer.BuildConfig.VERSION_NAME}", color = C.Ink, fontSize = 14.sp)
+                // Gemeinsame Monatsgrenze für Routen (bleibt unter den 1.000 Gratis-Zielen von Google)
+                var used by remember { mutableStateOf<Long?>(null) }
+                androidx.compose.runtime.LaunchedEffect(Unit) { used = controller.routeBudget.used() }
+                Text("Routen diesen Monat (alle zusammen): ${used ?: "–"} von ${at.beifahrer.data.RouteBudget.LIMIT}", color = C.Muted, fontSize = 13.sp)
                 st.update?.let { u -> UpdateBanner(u.versionName, st.updateProgress) { controller.installUpdate() } }
                     ?: Segmented(listOf(true to "Nach Updates suchen"), true) { controller.checkForUpdate(manual = true) }
                 if (!controller.updater.enabled) Text("Updates sind aus, weil die App nicht über GitHub gebaut wurde.", color = C.Muted, fontSize = 12.sp)
