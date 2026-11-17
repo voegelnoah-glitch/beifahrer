@@ -8,7 +8,6 @@ lifecycle = "2.9.2"
 coreKtx = "1.16.0"
 coroutines = "1.10.2"
 navigationSdk = "7.9.0"      # Google Navigation SDK (Karte + Turn-by-Turn + Android Auto)
-turnByTurn = "1.0.0"         # NavInfo-Daten für die Android-Auto-Vorlage
 carApp = "1.7.0"             # Android for Cars App Library
 places = "4.4.1"             # Zielsuche
 desugar = "2.1.5"
@@ -33,7 +32,6 @@ compose-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-pr
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-play = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 navigation-sdk = { group = "com.google.android.libraries.navigation", name = "navigation", version.ref = "navigationSdk" }
-turnbyturn = { group = "com.google.android.libraries.mapsplatform.turnbyturn", name = "turnbyturn", version.ref = "turnByTurn" }
 car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
 car-app-projected = { group = "androidx.car.app", name = "app-projected", version.ref = "carApp" }
 places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }

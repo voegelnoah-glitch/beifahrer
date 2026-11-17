@@ -87,7 +87,6 @@ dependencies {
     implementation(libs.coroutines.play)
 
     implementation(libs.navigation.sdk)
-    implementation(libs.turnbyturn)
     implementation(libs.car.app)
     implementation(libs.car.app.projected)
     implementation(libs.places)
