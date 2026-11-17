@@ -3,18 +3,16 @@ package at.beifahrer.data
 import at.beifahrer.pacenote.Geo
 import at.beifahrer.pacenote.LocalProjection
 import at.beifahrer.pacenote.PaceNoteEngine
-import at.beifahrer.pacenote.PolylineCodec
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import kotlin.math.hypot
 
 /**
- * Holt Höhen entlang der Route (Google Elevation API) – daraus entstehen Kuppen, Senken und "steil bergab".
- * Abtastung alle 20 m, bis zu 300 Punkte pro Anfrage. Eine 30-km-Route braucht etwa 5 Anfragen.
+ * Holt Höhen entlang der Route (Open-Meteo, kostenlos und ohne Schlüssel) – daraus entstehen Kuppen, Senken und "steil bergab".
+ * Abtastung alle 20 m, bis zu 100 Punkte pro Anfrage. Das Geländemodell ist grob, deshalb wird leicht geglättet.
  */
-class ElevationClient(private val apiKey: String) {
+class ElevationClient {
 
     /** Liefert für jeden Routenpunkt eine Höhe (Meter). Blockierend – im IO-Thread aufrufen. */
     fun heightsAlong(route: List<Geo>, proj: LocalProjection): DoubleArray {
@@ -31,15 +29,18 @@ class ElevationClient(private val apiKey: String) {
         val sampleGeo = samples.map { proj.toGeo(it) }
         val heights = DoubleArray(sampleGeo.size)
         sampleGeo.chunked(BATCH).forEachIndexed { b, chunk ->
-            val enc = URLEncoder.encode("enc:" + PolylineCodec.encode(chunk), "UTF-8")
-            val url = URL("https://maps.googleapis.com/maps/api/elevation/json?locations=$enc&key=$apiKey")
+            val lat = chunk.joinToString(",") { "%.5f".format(java.util.Locale.ROOT, it.lat) }
+            val lng = chunk.joinToString(",") { "%.5f".format(java.util.Locale.ROOT, it.lng) }
+            val url = URL("https://api.open-meteo.com/v1/elevation?latitude=$lat&longitude=$lng")
             val con = (url.openConnection() as HttpURLConnection).apply { connectTimeout = 8000; readTimeout = 8000 }
+            check(con.responseCode == 200) { "Höhendaten: HTTP ${con.responseCode}" }
             val body = con.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(body)
-            check(json.getString("status") == "OK") { "Elevation API: ${json.optString("status")} ${json.optString("error_message")}" }
-            val res = json.getJSONArray("results")
-            for (i in 0 until res.length()) heights[b * BATCH + i] = res.getJSONObject(i).getDouble("elevation")
+            val res = JSONObject(body).getJSONArray("elevation")
+            for (i in 0 until res.length()) heights[b * BATCH + i] = res.getDouble(i)
         }
+        // Rauschen des Geländemodells glätten (gleitender Mittelwert über ~60 m)
+        val c = heights.copyOf()
+        for (i in 1 until heights.size - 1) heights[i] = 0.25 * c[i - 1] + 0.5 * c[i] + 0.25 * c[i + 1]
         // zurück auf die Original-Punkte interpolieren
         return DoubleArray(route.size) { i ->
             val pos = withS[i].first / SAMPLE_M
@@ -52,6 +53,6 @@ class ElevationClient(private val apiKey: String) {
 
     companion object {
         private const val SAMPLE_M = 20.0
-        private const val BATCH = 300
+        private const val BATCH = 100
     }
 }

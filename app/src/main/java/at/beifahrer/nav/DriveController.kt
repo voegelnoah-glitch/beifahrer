@@ -65,7 +65,7 @@ class DriveController(private val app: Application) {
     val account = Account()
     private var cloudJob: Job? = null
     private val recent = RecentDestinations(app)
-    private val elevation = ElevationClient(BuildConfig.MAPS_API_KEY)
+    private val elevation = ElevationClient()
     val places by lazy { PlacesSearch(app) }
     private val bumps = BumpDetector(app) { strength -> onBumpDetected(strength) }
 

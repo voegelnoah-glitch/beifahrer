@@ -26,7 +26,7 @@ interface CloudTts {
 class GoogleCloudTts(private val apiKey: String) : CloudTts {
 
     override fun listVoices(): List<CloudVoice> {
-        val json = JSONObject(get("https://texttospeech.googleapis.com/v1/voices?languageCode=de-DE&key=$apiKey"))
+        val json = JSONObject(get("https://texttospeech.googleapis.com/v1/voices?languageCode=de-DE&key=$apiKey", ANDROID_KEY_HEADERS))
         val arr = json.optJSONArray("voices") ?: JSONArray()
         return (0 until arr.length()).map { arr.getJSONObject(it) }
             .filter { o -> (0 until o.getJSONArray("languageCodes").length()).any { o.getJSONArray("languageCodes").getString(it) == "de-DE" } }
@@ -55,17 +55,21 @@ class GoogleCloudTts(private val apiKey: String) : CloudTts {
             .put("audioConfig", audio)
         val url = "https://texttospeech.googleapis.com/v1/text:synthesize?key=$apiKey"
         val res = try {
-            JSONObject(post(url, body.toString(), emptyMap()))
+            JSONObject(post(url, body.toString(), ANDROID_KEY_HEADERS))
         } catch (e: IllegalStateException) {
             // Manche Stimmtypen kennen kein Sprechtempo → ohne nochmal versuchen
             if (e.message?.startsWith("HTTP 400") != true) throw e
             audio.remove("speakingRate")
-            JSONObject(post(url, body.toString(), emptyMap()))
+            JSONObject(post(url, body.toString(), ANDROID_KEY_HEADERS))
         }
         return Base64.decode(res.getString("audioContent"), Base64.DEFAULT)
     }
 
-    companion object { val TIER_ORDER = listOf("Chirp 3 HD", "Studio", "Neural2", "WaveNet", "Standard") }
+    companion object {
+        val TIER_ORDER = listOf("Chirp 3 HD", "Studio", "Neural2", "WaveNet", "Standard")
+        /** Der Schlüssel ist auf die App beschränkt – Google erkennt sie an Paketname + Signatur (SHA-1). */
+        val ANDROID_KEY_HEADERS = mapOf("X-Android-Package" to "at.beifahrer", "X-Android-Cert" to "AB1B226C3B57428F079507D5C285A6DFB60F9550")
+    }
 }
 
 /** ElevenLabs – sehr ausdrucksstarke Stimmen, eigener Schlüssel von elevenlabs.io nötig. */
