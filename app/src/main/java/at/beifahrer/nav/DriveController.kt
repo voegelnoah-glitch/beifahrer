@@ -318,7 +318,8 @@ class DriveController(private val app: Application) {
 
     private fun announce(book: PaceBook, s: Double, v: Double) {
         val set = _state.value.settings
-        val lead = (v * set.leadSec).coerceIn(50.0, 280.0) // Vorlauf aus den Einstellungen
+        // Vorlauf aus den Einstellungen: fester Abstand oder Sekunden je nach Tempo
+        val lead = if (set.leadMode == "meter") set.leadMeters.toDouble() else (v * set.leadSec).coerceIn(50.0, 280.0)
         val notes = book.notes
         for (i in notes.indices) {
             val n = notes[i]
@@ -336,6 +337,9 @@ class DriveController(private val app: Application) {
             }
             val st = _state.value
             val sentence = text.toString()
+            // "In 200 Metern" vorweg – als eigener Satz, damit die KI-Stimme ihn vorab erzeugen kann
+            val ahead = n.s - s
+            if (set.sayIn && ahead >= 40) speak(inMeters(ahead), rateFor(style))
             speak(sentence, rateFor(style))
             _state.update { it.copy(lastSpoken = sentence) }
             return
@@ -377,6 +381,9 @@ class DriveController(private val app: Application) {
         return t.replace(Regex(", (\\d+|lange Gerade)$"), "").replace(", danach lange Gerade", "")
     }
 
+    /** "In 150 Metern" – auf 50 m gerundet. */
+    private fun inMeters(d: Double): String = "In ${(Math.round(d / 50.0) * 50).coerceIn(50, 600)} Metern"
+
     // ---------------- Stimme ----------------
 
     private fun rateFor(style: CallStyle) = if (style == CallStyle.RALLY) announcer.preset.rate else minOf(announcer.preset.rate, 1.1f)
@@ -405,7 +412,7 @@ class DriveController(private val app: Application) {
             out += sb.toString(); i = j + 1
         }
         val reminders = book.notes.filter { it.type == NoteType.CURVE }.map { PaceText.title(it, style) + "!" }.distinct()
-        return out + reminders + listOf("Ziel erreicht.", "Gebetbuch geladen.")
+        return out + reminders + (50..600 step 50).map { inMeters(it.toDouble()) } + listOf("Ziel erreicht.", "Gebetbuch geladen.")
     }
 
     /** Erzeugt die Ansagen der Route einmal mit der KI-Stimme (läuft im Hintergrund, Fahrt kann sofort los). */

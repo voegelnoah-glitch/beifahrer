@@ -10,6 +10,9 @@ import org.json.JSONObject
 data class AppSettings(
     // Warnung
     val leadSec: Double = 5.5,          // so viele Sekunden vor der Kurve wird angesagt
+    val leadMode: String = "meter",     // "meter" = fester Abstand, "zeit" = je nach Tempo (leadSec)
+    val leadMeters: Int = 200,          // so viele Meter vor der Kurve (bei leadMode "meter")
+    val sayIn: Boolean = true,          // "In 200 Metern" vor der Ansage sagen
     val remind: Boolean = true,         // kurz davor nochmal: "Rechts 3!"
     val overTol: Int = 5,               // zu-schnell-Warnung ab +X km/h, 0 = aus
     // Wovor warnen: abgeschaltete Kategorien (siehe WARN_GROUPS). Leer = vor allem warnen.
@@ -50,7 +53,7 @@ class SettingsStore(context: Context) {
         val o = runCatching { JSONObject(prefs.getString("s", "{}")!!) }.getOrDefault(JSONObject())
         val d = AppSettings()
         return AppSettings(
-            leadSec = o.optDouble("leadSec", d.leadSec), remind = o.optBoolean("remind", d.remind), overTol = o.optInt("overTol", d.overTol),
+            leadSec = o.optDouble("leadSec", d.leadSec), leadMode = o.optString("leadMode", d.leadMode), leadMeters = o.optInt("leadMeters", d.leadMeters), sayIn = o.optBoolean("sayIn", d.sayIn), remind = o.optBoolean("remind", d.remind), overTol = o.optInt("overTol", d.overTol),
             warnOff = o.optJSONArray("warnOff")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: d.warnOff,
             sayDist = o.optBoolean("sayDist", d.sayDist), vmaxShow = o.optString("vmaxShow", d.vmaxShow),
             style = runCatching { CallStyle.valueOf(o.optString("style")) }.getOrDefault(d.style),
@@ -66,7 +69,7 @@ class SettingsStore(context: Context) {
 
     fun save(s: AppSettings) {
         val o = JSONObject()
-            .put("leadSec", s.leadSec).put("remind", s.remind).put("overTol", s.overTol)
+            .put("leadSec", s.leadSec).put("leadMode", s.leadMode).put("leadMeters", s.leadMeters).put("sayIn", s.sayIn).put("remind", s.remind).put("overTol", s.overTol)
             .put("warnOff", org.json.JSONArray(s.warnOff.toList()))
             .put("sayDist", s.sayDist).put("vmaxShow", s.vmaxShow).put("style", s.style.name)
             .put("driveStyle", s.driveStyle.name).put("wet", s.wet).put("speedLimit", s.speedLimit)

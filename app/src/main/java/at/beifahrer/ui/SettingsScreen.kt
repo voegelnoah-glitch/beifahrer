@@ -59,8 +59,16 @@ fun SettingsScreen(st: DriveState, controller: DriveController, onBack: () -> Un
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
             Section("Warnung") {
-                Item("Wie früh ansagen?", "Bei 80 km/h etwa ${(80 / 3.6 * s.leadSec).roundToInt()} m vor der Kurve") {
+                Item("Wann ansagen?", "Fester Abstand oder je nach Tempo (schneller = früher)") {
+                    Segmented(listOf("meter" to "Meter", "zeit" to "Je nach Tempo"), s.leadMode) { v -> set { it.copy(leadMode = v) } }
+                }
+                if (s.leadMode == "meter") Item("Wie viele Meter vorher?", "Die Ansage kommt ${s.leadMeters} m vor der Kurve") {
+                    Segmented(listOf(100 to "100", 150 to "150", 200 to "200", 300 to "300", 400 to "400 m"), s.leadMeters) { v -> set { it.copy(leadMeters = v) } }
+                } else Item("Wie früh ansagen?", "Bei 80 km/h etwa ${(80 / 3.6 * s.leadSec).roundToInt()} m vor der Kurve") {
                     Segmented(listOf(8.0 to "Sehr früh", 6.5 to "Früh", 5.5 to "Normal", 4.0 to "Spät"), s.leadSec) { v -> set { it.copy(leadSec = v) } }
+                }
+                Item("„In … Metern“ dazusagen", "z. B. „In 200 Metern – Rechts 4, zieht zu“") {
+                    OnOff(s.sayIn) { v -> set { it.copy(sayIn = v) } }
                 }
                 Item("Kurz davor nochmal erinnern", "Bei engen und gefährlichen Kurven: „Rechts 3!“ etwa 2 Sekunden vorher") {
                     OnOff(s.remind) { v -> set { it.copy(remind = v) } }
