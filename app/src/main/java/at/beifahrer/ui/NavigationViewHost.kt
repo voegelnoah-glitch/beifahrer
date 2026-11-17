@@ -33,6 +33,8 @@ fun NavigationViewHost(
     tilt: Boolean = true,
     hazards: List<CloudHazard> = emptyList(),
     onLongPress: (LatLng) -> Unit = {},
+    padTop: Int = 0,        // Pixel oben, die von eigenen Anzeigen verdeckt sind
+    padBottom: Int = 0,     // Pixel unten (Vorschau + Knöpfe)
 ) {
     val longPress by rememberUpdatedState(onLongPress)
     val context = LocalContext.current
@@ -43,7 +45,7 @@ fun NavigationViewHost(
             setHeaderEnabled(false)
             setEtaCardEnabled(false)
             setSpeedometerEnabled(false)
-            setTripProgressBarEnabled(true)
+            setTripProgressBarEnabled(false) // der blaue Balken links würde die Anzeigen überdecken
         }
     }
     DisposableEffect(lifecycle) {
@@ -65,6 +67,10 @@ fun NavigationViewHost(
             it.followMyLocation(if (tilt) GoogleMap.CameraPerspective.TILTED else GoogleMap.CameraPerspective.TOP_DOWN_HEADING_UP)
         }
         onDispose {}
+    }
+    // Kamera nur im freien Bereich zwischen oberen und unteren Anzeigen – so ist dein Standort mittig sichtbar
+    LaunchedEffect(padTop, padBottom) {
+        view.getMapAsync { it.setPadding(0, padTop, 0, padBottom) }
     }
     // Lang drücken = Gefahr an dieser Stelle eintragen
     DisposableEffect(Unit) {

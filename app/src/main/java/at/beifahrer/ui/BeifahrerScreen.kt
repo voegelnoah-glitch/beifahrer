@@ -53,6 +53,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,13 +92,19 @@ fun BeifahrerScreen(controller: DriveController) {
             onBack = { report = null })
         return
     }
-    Box(Modifier.fillMaxSize().background(C.Bg)) {
+    // Wo die eigenen Anzeigen die Karte verdecken (Pixel) – damit die Kamera den Standort in den freien Bereich legt
+    var screenH by remember { mutableStateOf(0) }
+    var topEnd by remember { mutableStateOf(0) }
+    var bottomStart by remember { mutableStateOf(0) }
+    val driving = st.mode == Mode.DRIVING || st.mode == Mode.ARRIVED
+    Box(Modifier.fillMaxSize().background(C.Bg).onGloballyPositioned { screenH = it.size.height }) {
         if (st.navigatorReady) NavigationViewHost(Modifier.fillMaxSize(), following = st.mode == Mode.DRIVING, tilt = st.settings.tilt,
+            padTop = if (driving) topEnd else 0, padBottom = if (driving && bottomStart > 0) (screenH - bottomStart).coerceAtLeast(0) else 0,
             hazards = st.cloudHazards.filter { it.visibleFor(st.settings.group) },
             onLongPress = { report = ReportTarget(it.latitude, it.longitude, "%.5f, %.5f".format(it.latitude, it.longitude), fromMap = true) })
         when (st.mode) {
             Mode.IDLE, Mode.ROUTING -> SearchOverlay(st, controller, openVoices = { showVoices = true }, openHazards = { showHazards = true }, openSettings = { showSettings = true })
-            Mode.DRIVING, Mode.ARRIVED -> DriveOverlay(st, controller, openSettings = { showSettings = true }, openHazards = { showHazards = true }, openReport = {
+            Mode.DRIVING, Mode.ARRIVED -> DriveOverlay(st, controller, onTopEnd = { topEnd = it }, onBottomStart = { bottomStart = it }, openSettings = { showSettings = true }, openHazards = { showHazards = true }, openReport = {
                 val pos = controller.currentPosition()
                 if (pos == null) controller.showMessage("Noch keine Position.")
                 else report = ReportTarget(pos.first, pos.second, "aktuelle Position", fromMap = false)
@@ -228,7 +236,7 @@ fun AccountRow(st: DriveState, controller: DriveController) {
 // ---------------- Während der Fahrt ----------------
 
 @Composable
-private fun DriveOverlay(st: DriveState, controller: DriveController, openSettings: () -> Unit, openHazards: () -> Unit, openReport: () -> Unit) {
+private fun DriveOverlay(st: DriveState, controller: DriveController, onTopEnd: (Int) -> Unit, onBottomStart: (Int) -> Unit, openSettings: () -> Unit, openHazards: () -> Unit, openReport: () -> Unit) {
     // Zurück-Taste: nachfragen, dann Fahrt beenden und ins Hauptmenü
     var askStop by remember { mutableStateOf(false) }
     androidx.activity.compose.BackHandler { askStop = true }
@@ -240,6 +248,7 @@ private fun DriveOverlay(st: DriveState, controller: DriveController, openSettin
         dismissButton = { androidx.compose.material3.TextButton(onClick = { askStop = false }) { Text("Weiterfahren") } },
     )
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.onGloballyPositioned { onTopEnd(it.boundsInRoot().bottom.toInt()) }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NavBanner(st)
         if (st.book == null) Text("Kurven werden berechnet …", color = C.Muted, modifier = Modifier.padding(6.dp))
         else {
@@ -256,10 +265,13 @@ private fun DriveOverlay(st: DriveState, controller: DriveController, openSettin
                     color = C.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 6.dp))
             }
         }
+        }
         Spacer(Modifier.weight(1f))
+        Column(Modifier.onGloballyPositioned { onBottomStart(it.boundsInRoot().top.toInt()) }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         st.voicePrep?.let { Text(it, color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 6.dp)) }
         Tape(st)
         BottomBar(st, controller, openSettings, openHazards, openReport, onStop = { askStop = true })
+        }
     }
 }
 
@@ -311,16 +323,16 @@ private fun BottomBar(st: DriveState, controller: DriveController, openSettings:
             }
             Column(Modifier.weight(1f)) {
                 val eta = LocalTime.now().plusSeconds(st.remainingSeconds.toLong()).format(DateTimeFormatter.ofPattern("HH:mm"))
-                Text(if (st.paused) "Pausiert" else eta, color = if (st.paused) C.Accent else C.Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                Text("${formatDist(st.remainingMeters)} · ${(st.remainingSeconds / 60).coerceAtLeast(1)} min", color = C.Muted, fontSize = 12.sp)
+                Text(if (st.paused) "Pausiert" else eta, color = if (st.paused) C.Accent else C.Ink, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, softWrap = false)
+                Text("${formatDist(st.remainingMeters)} · ${(st.remainingSeconds / 60).coerceAtLeast(1)} min", color = C.Muted, fontSize = 12.sp, maxLines = 1, softWrap = false)
             }
             // Pause / Weiter
-            androidx.compose.material3.FilledTonalButton(onClick = controller::togglePause) {
+            androidx.compose.material3.FilledTonalButton(onClick = controller::togglePause, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp)) {
                 Icon(if (st.paused) Icons.Default.PlayArrow else Icons.Default.Pause, null, modifier = Modifier.size(18.dp))
                 Text(if (st.paused) " Weiter" else " Pause")
             }
             // Beenden -> Hauptmenü
-            androidx.compose.material3.Button(onClick = onStop, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = C.Danger)) {
+            androidx.compose.material3.Button(onClick = onStop, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = C.Danger)) {
                 Icon(Icons.Default.Stop, null, modifier = Modifier.size(18.dp))
                 Text(" Stopp")
             }
