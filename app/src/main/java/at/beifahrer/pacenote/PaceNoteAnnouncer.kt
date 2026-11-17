@@ -77,5 +77,8 @@ class PaceNoteAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         tts.speak(PaceText.smooth(text), if (force) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, params, "note-${counter++}")
     }
 
+    /** Laufende und wartende Ansagen abbrechen. */
+    fun stop() { if (ready) tts.stop() }
+
     fun shutdown() = tts.shutdown()
 }

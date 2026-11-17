@@ -216,6 +216,15 @@ class DriveController(private val app: Application) {
         }
     }
 
+    /** Pause: Google-Führung und Ansagen anhalten, Route bleibt. Nochmal tippen = weiter. */
+    fun togglePause() {
+        val nav = navigator ?: return
+        val pause = !_state.value.paused
+        if (pause) { nav.stopGuidance(); aiVoice.stop(); announcer.stop() } else nav.startGuidance()
+        _state.update { it.copy(paused = pause) }
+        showMessage(if (pause) "Pausiert – keine Ansagen." else null)
+    }
+
     fun stop() {
         navigator?.apply { simulator.unsetUserLocation(); stopGuidance(); clearDestinations() }
         stopSensors()
@@ -223,7 +232,7 @@ class DriveController(private val app: Application) {
         cloud.stop()
         aiVoice.stop(); prepJob?.cancel()
         spoken.clear()
-        _state.update { it.copy(mode = Mode.IDLE, book = null, current = null, upcoming = emptyList(), navStepText = null) }
+        _state.update { it.copy(mode = Mode.IDLE, book = null, current = null, upcoming = emptyList(), navStepText = null, paused = false, message = null) }
         autoUpdate() // ein Update, das während der Fahrt kam, jetzt installieren
     }
 
@@ -241,7 +250,7 @@ class DriveController(private val app: Application) {
                 withContext(Dispatchers.IO) { elevation.heightsAlong(routeGeo, p) }
             } catch (e: Exception) {
                 Log.w(TAG, "Höhendaten fehlen", e)
-                showMessage("Keine Höhendaten – Kuppen werden diesmal nicht angesagt.")
+                showMessage("Keine Höhendaten (${e.javaClass.simpleName}: ${e.message?.take(40)}) – Kuppen werden diesmal nicht angesagt.")
                 DoubleArray(routeGeo.size)
             }
             rebuildBook()
@@ -285,6 +294,7 @@ class DriveController(private val app: Application) {
                 distToCurrent = cur?.let { n -> n.s - s } ?: 0.0,
             )
         }
+        if (_state.value.paused) return
         announce(book, s, loc.speed.toDouble())
         checkOverspeed(book, s, loc.speed * 3.6f)
     }

@@ -45,6 +45,7 @@ data class DriveState(
     val update: UpdateInfo? = null,         // neue Version verfügbar
     val updateProgress: Int? = null,        // Download in Prozent
     val cloudHazards: List<CloudHazard> = emptyList(),   // alle Stellen im beobachteten Gebiet
+    val paused: Boolean = false,                         // Fahrt pausiert: keine Ansagen, keine Google-Führung
 ) {
     // Abkürzungen auf die Einstellungen
     val style: CallStyle get() = settings.style

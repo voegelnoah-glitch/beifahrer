@@ -31,11 +31,7 @@ class ElevationClient {
         sampleGeo.chunked(BATCH).forEachIndexed { b, chunk ->
             val lat = chunk.joinToString(",") { "%.5f".format(java.util.Locale.ROOT, it.lat) }
             val lng = chunk.joinToString(",") { "%.5f".format(java.util.Locale.ROOT, it.lng) }
-            val url = URL("https://api.open-meteo.com/v1/elevation?latitude=$lat&longitude=$lng")
-            val con = (url.openConnection() as HttpURLConnection).apply { connectTimeout = 8000; readTimeout = 8000 }
-            check(con.responseCode == 200) { "Höhendaten: HTTP ${con.responseCode}" }
-            val body = con.inputStream.bufferedReader().use { it.readText() }
-            val res = JSONObject(body).getJSONArray("elevation")
+            val res = JSONObject(fetch("https://api.open-meteo.com/v1/elevation?latitude=$lat&longitude=$lng")).getJSONArray("elevation")
             for (i in 0 until res.length()) heights[b * BATCH + i] = res.getDouble(i)
         }
         // Rauschen des Geländemodells glätten (gleitender Mittelwert über ~60 m)
@@ -49,6 +45,25 @@ class ElevationClient {
             val t = pos - a
             heights[a] + (heights[b] - heights[a]) * t
         }
+    }
+
+    /** GET mit eigener Kennung und einem zweiten Versuch (Mobilfunk bricht gern mal ab). */
+    private fun fetch(url: String): String {
+        var last: Exception? = null
+        repeat(2) { attempt ->
+            try {
+                val con = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10_000; readTimeout = 10_000
+                    setRequestProperty("User-Agent", "Beifahrer-App/1.0 (Android)")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = con.responseCode
+                if (code == 200) return con.inputStream.bufferedReader().use { it.readText() }
+                last = IllegalStateException("HTTP $code")
+            } catch (e: Exception) { last = e }
+            if (attempt == 0) Thread.sleep(800)
+        }
+        throw last ?: IllegalStateException("unbekannt")
     }
 
     companion object {

@@ -56,7 +56,8 @@ fun PaceNoteCard(note: PaceNote?, dist: Double, style: CallStyle, modifier: Modi
             .background(C.Panel)
             .border(1.dp, if (danger || overspeed) C.Danger.copy(alpha = .7f) else C.Line, RoundedCornerShape(18.dp))
     ) {
-        Box(Modifier.width(5.dp).fillMaxHeight().background(stripe).align(Alignment.CenterStart))
+        // Farbstreifen links: matchParentSize, damit die Karte nicht auf volle Bildschirmhöhe wächst
+        Box(Modifier.matchParentSize()) { Box(Modifier.width(5.dp).fillMaxHeight().background(stripe)) }
         Row(Modifier.padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NoteGlyph(note, Modifier.size(84.dp))
             Column(Modifier.weight(1f)) {

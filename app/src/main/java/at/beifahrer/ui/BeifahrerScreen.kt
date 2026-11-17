@@ -24,6 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -92,12 +96,14 @@ fun BeifahrerScreen(controller: DriveController) {
             onLongPress = { report = ReportTarget(it.latitude, it.longitude, "%.5f, %.5f".format(it.latitude, it.longitude), fromMap = true) })
         when (st.mode) {
             Mode.IDLE, Mode.ROUTING -> SearchOverlay(st, controller, openVoices = { showVoices = true }, openHazards = { showHazards = true }, openSettings = { showSettings = true })
-            Mode.DRIVING, Mode.ARRIVED -> DriveOverlay(st, controller, openSettings = { showSettings = true }, openReport = {
+            Mode.DRIVING, Mode.ARRIVED -> DriveOverlay(st, controller, openSettings = { showSettings = true }, openHazards = { showHazards = true }, openReport = {
                 val pos = controller.currentPosition()
                 if (pos == null) controller.showMessage("Noch keine Position.")
                 else report = ReportTarget(pos.first, pos.second, "aktuelle Position", fromMap = false)
             })
         }
+        // Hinweise verschwinden nach ein paar Sekunden von selbst (außer "Pausiert")
+        LaunchedEffect(st.message) { if (st.message != null && !st.paused) { delay(5000); controller.showMessage(null) } }
         st.message?.let { msg ->
             Text(msg, color = C.Ink, fontSize = 14.sp, modifier = Modifier.align(Alignment.Center).padding(24.dp)
                 .clip(RoundedCornerShape(14.dp)).background(Color(0xFF222C3A)).padding(14.dp))
@@ -222,7 +228,17 @@ fun AccountRow(st: DriveState, controller: DriveController) {
 // ---------------- Während der Fahrt ----------------
 
 @Composable
-private fun DriveOverlay(st: DriveState, controller: DriveController, openSettings: () -> Unit, openReport: () -> Unit) {
+private fun DriveOverlay(st: DriveState, controller: DriveController, openSettings: () -> Unit, openHazards: () -> Unit, openReport: () -> Unit) {
+    // Zurück-Taste: nachfragen, dann Fahrt beenden und ins Hauptmenü
+    var askStop by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler { askStop = true }
+    if (askStop) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { askStop = false },
+        title = { Text("Fahrt beenden?") },
+        text = { Text("Die Navigation wird gestoppt und du kommst zurück ins Hauptmenü.") },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { askStop = false; controller.stop() }) { Text("Beenden") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { askStop = false }) { Text("Weiterfahren") } },
+    )
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NavBanner(st)
         if (st.book == null) Text("Kurven werden berechnet …", color = C.Muted, modifier = Modifier.padding(6.dp))
@@ -243,7 +259,7 @@ private fun DriveOverlay(st: DriveState, controller: DriveController, openSettin
         Spacer(Modifier.weight(1f))
         st.voicePrep?.let { Text(it, color = C.Muted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 6.dp)) }
         Tape(st)
-        BottomBar(st, controller, openSettings, openReport)
+        BottomBar(st, controller, openSettings, openHazards, openReport, onStop = { askStop = true })
     }
 }
 
@@ -282,30 +298,47 @@ private fun Tape(st: DriveState) {
 }
 
 @Composable
-private fun BottomBar(st: DriveState, controller: DriveController, openSettings: () -> Unit, openReport: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp)).padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val overHere = st.overspeed && st.settings.vmaxShow == "both"
-        Box(Modifier.size(58.dp).border(3.dp, if (overHere) C.Danger else C.Accent, CircleShape), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${st.speedKmh}", color = if (overHere) C.Danger else C.Ink, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
-                Text("km/h", color = C.Muted, fontSize = 10.sp)
+private fun BottomBar(st: DriveState, controller: DriveController, openSettings: () -> Unit, openHazards: () -> Unit, openReport: () -> Unit, onStop: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp)).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val overHere = st.overspeed && st.settings.vmaxShow == "both"
+            Box(Modifier.size(56.dp).border(3.dp, if (overHere) C.Danger else C.Accent, CircleShape), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${st.speedKmh}", color = if (overHere) C.Danger else C.Ink, fontWeight = FontWeight.ExtraBold, fontSize = 21.sp)
+                    Text("km/h", color = C.Muted, fontSize = 10.sp)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                val eta = LocalTime.now().plusSeconds(st.remainingSeconds.toLong()).format(DateTimeFormatter.ofPattern("HH:mm"))
+                Text(if (st.paused) "Pausiert" else eta, color = if (st.paused) C.Accent else C.Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text("${formatDist(st.remainingMeters)} · ${(st.remainingSeconds / 60).coerceAtLeast(1)} min", color = C.Muted, fontSize = 12.sp)
+            }
+            // Pause / Weiter
+            androidx.compose.material3.FilledTonalButton(onClick = controller::togglePause) {
+                Icon(if (st.paused) Icons.Default.PlayArrow else Icons.Default.Pause, null, modifier = Modifier.size(18.dp))
+                Text(if (st.paused) " Weiter" else " Pause")
+            }
+            // Beenden -> Hauptmenü
+            androidx.compose.material3.Button(onClick = onStop, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = C.Danger)) {
+                Icon(Icons.Default.Stop, null, modifier = Modifier.size(18.dp))
+                Text(" Stopp")
             }
         }
-        Column(Modifier.weight(1f)) {
-            val eta = LocalTime.now().plusSeconds(st.remainingSeconds.toLong()).format(DateTimeFormatter.ofPattern("HH:mm"))
-            Text(eta, color = C.Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text("${formatDist(st.remainingMeters)} · ${(st.remainingSeconds / 60).coerceAtLeast(1)} min", color = C.Muted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DriveAction("Gefahr melden", Icons.Default.Warning, Color(0xFFFFB3B3), Color(0xFF3A1D1F), Modifier.weight(1f), openReport)
+            DriveAction("Gefahren", Icons.AutoMirrored.Filled.List, C.Accent, C.Panel2, Modifier.weight(1f), openHazards)
+            DriveAction("Einstellungen", Icons.Default.Settings, C.Accent, C.Panel2, Modifier.weight(1f), openSettings)
         }
-        IconButton(onClick = openReport, modifier = Modifier.clip(CircleShape).background(Color(0xFF3A1D1F))) {
-            Icon(Icons.Default.Warning, "Gefahr melden", tint = Color(0xFFFFB3B3))
-        }
-        IconButton(onClick = openSettings, modifier = Modifier.clip(CircleShape).background(C.Panel2)) {
-            Icon(Icons.Default.Settings, "Einstellungen", tint = C.Accent)
-        }
-        IconButton(onClick = controller::stop, modifier = Modifier.clip(CircleShape).background(C.Panel2)) {
-            Icon(Icons.Default.Close, "Fahrt beenden", tint = C.Ink)
-        }
+    }
+}
+
+@Composable
+private fun DriveAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, bg: Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clip(RoundedCornerShape(12.dp)).background(bg).border(1.dp, C.Line, RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(icon, label, tint = tint, modifier = Modifier.size(20.dp))
+        Text(label, color = C.Ink, fontSize = 11.sp, maxLines = 1)
     }
 }
 
