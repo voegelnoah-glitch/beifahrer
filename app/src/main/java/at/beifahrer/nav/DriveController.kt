@@ -327,11 +327,14 @@ class DriveController(private val app: Application) {
             if (n.s - s > lead) break
             if (n.sEnd < s) { spoken += n.id; continue }
             if (!wanted(n)) { spoken += n.id; continue }
+            // Nicht dazwischenreden: erst ansagen, wenn die vorige Ansage fertig ist
+            if (announcer.speaking || aiVoice.playing) return
             val style = _state.value.style
             val text = StringBuilder(spokenText(n, style)); spoken += n.id
             var j = i
             var vmin = vmax(n)
-            while (notes[j].link != null && j + 1 < notes.size) {
+            // Höchstens zwei Sachen auf einmal: "Links 3 in Rechts 4" – die dritte kommt danach extra
+            while (notes[j].link != null && j + 1 < notes.size && j - i < 1) {
                 j++; spoken += notes[j].id; text.append(' ').append(spokenText(notes[j], style))
                 vmax(notes[j])?.let { v2 -> vmin = vmin?.let { minOf(it, v2) } ?: v2 }
             }
@@ -404,7 +407,7 @@ class DriveController(private val app: Application) {
             val sb = StringBuilder(spokenText(n[i], style))
             var j = i
             var vmin = vmax(n[i])
-            while (n[j].link != null && j + 1 < n.size) {
+            while (n[j].link != null && j + 1 < n.size && j - i < 1) {
                 j++; sb.append(' ').append(spokenText(n[j], style))
                 vmax(n[j])?.let { v2 -> vmin = vmin?.let { minOf(it, v2) } ?: v2 }
             }

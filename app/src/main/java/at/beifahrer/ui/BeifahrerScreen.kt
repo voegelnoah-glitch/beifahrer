@@ -323,8 +323,11 @@ private fun BottomBar(st: DriveState, controller: DriveController, openSettings:
             }
             Column(Modifier.weight(1f)) {
                 val eta = LocalTime.now().plusSeconds(st.remainingSeconds.toLong()).format(DateTimeFormatter.ofPattern("HH:mm"))
-                Text(if (st.paused) "Pausiert" else eta, color = if (st.paused) C.Accent else C.Ink, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1, softWrap = false)
-                Text("${formatDist(st.remainingMeters)} · ${(st.remainingSeconds / 60).coerceAtLeast(1)} min", color = C.Muted, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                // Ankunftszeit: kleines Etikett, große Uhrzeit, darunter Rest-Strecke und -Zeit
+                Text(if (st.paused) "PAUSIERT" else "ANKUNFT", color = if (st.paused) C.Accent else C.Muted, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(eta, color = C.Ink, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, maxLines = 1, softWrap = false,
+                    style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"))
+                Text("${formatDist(st.remainingMeters)} · ${formatMin(st.remainingSeconds)}", color = C.Muted, fontSize = 12.sp, maxLines = 1, softWrap = false)
             }
             // Pause / Weiter
             androidx.compose.material3.FilledTonalButton(onClick = controller::togglePause, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp)) {
@@ -353,5 +356,7 @@ private fun DriveAction(label: String, icon: androidx.compose.ui.graphics.vector
         Text(label, color = C.Ink, fontSize = 11.sp, maxLines = 1)
     }
 }
+
+private fun formatMin(sec: Int): String { val m = (sec / 60).coerceAtLeast(1); return if (m >= 60) "${m / 60} h ${m % 60} min" else "$m min" }
 
 private fun formatDist(m: Int) = if (m >= 1000) "%.1f km".format(m / 1000.0).replace('.', ',') else "${(m / 10) * 10} m"
