@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -99,6 +100,7 @@ fun BeifahrerScreen(controller: DriveController) {
     val driving = st.mode == Mode.DRIVING || st.mode == Mode.ARRIVED
     Box(Modifier.fillMaxSize().background(C.Bg).onGloballyPositioned { screenH = it.size.height }) {
         if (st.navigatorReady) NavigationViewHost(Modifier.fillMaxSize(), following = st.mode == Mode.DRIVING, tilt = st.settings.tilt,
+            mapType = st.settings.mapType,
             padTop = if (driving) topEnd else 0, padBottom = if (driving && bottomStart > 0) (screenH - bottomStart).coerceAtLeast(0) else 0,
             hazards = st.cloudHazards.filter { it.visibleFor(st.settings.group) },
             onLongPress = { report = ReportTarget(it.latitude, it.longitude, "%.5f, %.5f".format(it.latitude, it.longitude), fromMap = true) })
@@ -110,7 +112,16 @@ fun BeifahrerScreen(controller: DriveController) {
                 else report = ReportTarget(pos.first, pos.second, "aktuelle Position", fromMap = false)
             })
         }
-        // Hinweise verschwinden nach ein paar Sekunden von selbst (außer "Pausiert")
+        // Kartenansicht schnell umschalten (Karte → Satellit → Gelände), rechts im freien Kartenbereich
+        if (st.navigatorReady) {
+            val next = when (st.settings.mapType) { "normal" -> "satellit"; "satellit" -> "gelaende"; else -> "normal" }
+            Box(Modifier.align(Alignment.TopEnd).padding(top = if (driving && topEnd > 0) with(androidx.compose.ui.platform.LocalDensity.current) { topEnd.toDp() } + 12.dp else 150.dp, end = 14.dp)
+                .safeDrawingPadding().size(46.dp).clip(CircleShape).background(C.Panel.copy(alpha = .92f)).border(1.dp, C.Line, CircleShape)
+                .clickable { controller.updateSettings { it.copy(mapType = next) } }, contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Layers, "Kartenansicht wechseln", tint = C.Accent, modifier = Modifier.size(24.dp))
+            }
+        }
+                // Hinweise verschwinden nach ein paar Sekunden von selbst (außer "Pausiert")
         LaunchedEffect(st.message) { if (st.message != null && !st.paused) { delay(5000); controller.showMessage(null) } }
         st.message?.let { msg ->
             Text(msg, color = C.Ink, fontSize = 14.sp, modifier = Modifier.align(Alignment.Center).padding(24.dp)

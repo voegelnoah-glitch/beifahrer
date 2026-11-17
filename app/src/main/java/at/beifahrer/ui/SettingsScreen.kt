@@ -144,6 +144,7 @@ fun SettingsScreen(st: DriveState, controller: DriveController, onBack: () -> Un
 
             Section("Anzeige") {
                 Item("Karte während der Fahrt") { Segmented(listOf(true to "3D", false to "2D"), s.tilt) { v -> set { it.copy(tilt = v) } } }
+                Item("Kartenansicht", "Wie in Google Maps: Satellitenbild mit Straßen") { Segmented(listOf("normal" to "Karte", "satellit" to "Satellit", "gelaende" to "Gelände"), s.mapType) { v -> set { it.copy(mapType = v) } } }
             }
 
             Section("App") {

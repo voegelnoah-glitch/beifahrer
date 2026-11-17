@@ -35,6 +35,7 @@ fun NavigationViewHost(
     onLongPress: (LatLng) -> Unit = {},
     padTop: Int = 0,        // Pixel oben, die von eigenen Anzeigen verdeckt sind
     padBottom: Int = 0,     // Pixel unten (Vorschau + Knöpfe)
+    mapType: String = "normal",
 ) {
     val longPress by rememberUpdatedState(onLongPress)
     val context = LocalContext.current
@@ -71,6 +72,12 @@ fun NavigationViewHost(
     // Kamera nur im freien Bereich zwischen oberen und unteren Anzeigen – so ist dein Standort mittig sichtbar
     LaunchedEffect(padTop, padBottom) {
         view.getMapAsync { it.setPadding(0, padTop, 0, padBottom) }
+    }
+    // Kartenansicht: normal, Satellit (mit Straßen und Namen) oder Gelände
+    LaunchedEffect(mapType) {
+        view.getMapAsync {
+            it.mapType = when (mapType) { "satellit" -> GoogleMap.MAP_TYPE_HYBRID; "gelaende" -> GoogleMap.MAP_TYPE_TERRAIN; else -> GoogleMap.MAP_TYPE_NORMAL }
+        }
     }
     // Lang drücken = Gefahr an dieser Stelle eintragen
     DisposableEffect(Unit) {

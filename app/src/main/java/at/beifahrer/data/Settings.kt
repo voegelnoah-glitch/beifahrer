@@ -36,6 +36,7 @@ data class AppSettings(
     val sensor: Boolean = true,         // Bodenwellen automatisch erkennen
     // Anzeige
     val tilt: Boolean = true,           // 3D-Karte während der Fahrt
+    val mapType: String = "normal",     // "normal", "satellit" (Satellit mit Straßen) oder "gelaende"
 )
 
 /** Wovor gewarnt werden kann – Gruppen mit (Schlüssel, Anzeigename). Gefährliche Kurven werden immer angesagt. */
@@ -63,7 +64,7 @@ class SettingsStore(context: Context) {
             preset = runCatching { VoicePreset.valueOf(o.optString("preset")) }.getOrDefault(d.preset),
             volume = o.optDouble("volume", d.volume.toDouble()).toFloat(), duck = o.optBoolean("duck", d.duck),
             vis = o.optString("vis", d.vis), group = o.optString("group", d.group),
-            sensor = o.optBoolean("sensor", d.sensor), tilt = o.optBoolean("tilt", d.tilt),
+            sensor = o.optBoolean("sensor", d.sensor), tilt = o.optBoolean("tilt", d.tilt), mapType = o.optString("mapType", d.mapType),
         )
     }
 
@@ -74,7 +75,7 @@ class SettingsStore(context: Context) {
             .put("sayDist", s.sayDist).put("vmaxShow", s.vmaxShow).put("style", s.style.name)
             .put("driveStyle", s.driveStyle.name).put("wet", s.wet).put("speedLimit", s.speedLimit)
             .put("voiceOn", s.voiceOn).put("preset", s.preset.name).put("volume", s.volume.toDouble()).put("duck", s.duck)
-            .put("vis", s.vis).put("group", s.group).put("sensor", s.sensor).put("tilt", s.tilt)
+            .put("vis", s.vis).put("group", s.group).put("sensor", s.sensor).put("tilt", s.tilt).put("mapType", s.mapType)
         prefs.edit().putString("s", o.toString()).apply()
     }
 }
