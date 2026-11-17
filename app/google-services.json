@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "375414483201",
+    "project_id": "beifahrer-515016",
+    "storage_bucket": "beifahrer-515016.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375414483201:android:f87bc022119aacf0901300",
+        "android_client_info": {
+          "package_name": "at.beifahrer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "375414483201-s09820h8nj02ipjpgi4u4pi3sf64ot6n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "at.beifahrer",
+            "certificate_hash": "ab1b226c3b57428f079507d5c285a6dfb60f9550"
+          }
+        },
+        {
+          "client_id": "375414483201-svksbbdfbsdkncuj9jrb82b9177cq2rf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcXIRNgfSfP48KZUCfIG3IY4IB4OfqWmg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "375414483201-svksbbdfbsdkncuj9jrb82b9177cq2rf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
