@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Sicherheitsregeln für die gemeinsamen Gefahrenstellen.
+// In der Firebase-Konsole unter Firestore → Regeln einfügen und "Veröffentlichen".
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    // Eintragen und abstimmen nur mit Google-Konto (Lesen geht auch anonym)
+    function google() { return signedIn() && 'google.com' in request.auth.token.firebase.identities; }
+    function kinds() { return ['Bodenwelle', 'Schlagloch', 'Rollsplitt', 'Nässe / Eis', 'Wildwechsel', 'Kuppe uneinsehbar', 'Steilkurve', 'Baustelle', 'Sonstiges']; }
+    // Eine Liste darf sich nur um die eigene ID ändern (dazu oder weg)
+    function onlyOwnId(field) {
+      let before = resource.data[field].toSet();
+      let after = request.resource.data[field].toSet();
+      return after.difference(before).union(before.difference(after)).hasOnly([request.auth.uid]);
+    }
+
+    match /hazards/{id} {
+      allow read: if signedIn();
+
+      // Neue Meldung: gültige Art, Koordinaten, kurze Notiz, als man selbst
+      allow create: if google()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.kind in kinds()
+        && request.resource.data.lat is number && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng is number && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && request.resource.data.geohash is string && request.resource.data.geohash.size() <= 12
+        && request.resource.data.note is string && request.resource.data.note.size() <= 80
+        && request.resource.data.source in ['user', 'sensor']
+        && request.resource.data.confirmedBy == [request.auth.uid]
+        && request.resource.data.goneBy == []
+        && request.resource.data.createdByName is string && request.resource.data.createdByName.size() <= 30
+        && request.resource.data.group is string && request.resource.data.group.size() <= 24
+        && request.resource.data.keys().hasOnly(['lat', 'lng', 'geohash', 'kind', 'note', 'source', 'createdBy', 'createdByName', 'createdAt', 'expiresAt', 'confirmedBy', 'goneBy', 'group']);
+
+      // Abstimmen ("Noch da" / "Weg"): nur die beiden Listen, nur um die eigene ID
+      allow update: if google()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedBy', 'goneBy'])
+        && onlyOwnId('confirmedBy') && onlyOwnId('goneBy');
+
+      // Löschen: nur die eigene Meldung
+      allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
+    }
+  }
+}

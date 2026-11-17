@@ -1,0 +1,10 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+app/google-services.json
+*.jks
+# app/release.keystore ist absichtlich drin (passwortgeschützt, Passwort nur als GitHub-Secret)

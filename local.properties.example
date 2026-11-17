@@ -1,0 +1,6 @@
+# Kopiere diese Datei nach "local.properties" (Android Studio legt sdk.dir selbst an)
+# und trage deinen Google-Maps-Platform-Schlüssel ein.
+MAPS_API_KEY=DEIN_API_SCHLUESSEL
+
+# Optional, nur für lokale Builds mit Selbst-Update (in GitHub Actions automatisch):
+# UPDATE_REPO=dein-github-name/beifahrer

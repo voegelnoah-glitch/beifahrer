@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beifahrer App Prototyp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,700;1,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Nacht-Cockpit nach Vorlage: tiefes Navy, alles Normale in einem Neon-Cyan, Gefahren rot/orange.
+     Kursive, schmale Großbuchstaben für Titel. Layout: Handy + Android Auto nebeneinander, darunter Gebetbuch und Skala. */
+  --bg: #061026;
+  --panel: #0b1a36;
+  --panel-2: #10284f;
+  --line: #1d3f70;
+  --ink: #e6f3ff;
+  --muted: #7d98c0;
+  --accent: #3fd8ff;   /* einheitlich für alles Normale */
+  --accent-ink: #03203a;
+  --route: #3fd8ff;
+  --danger: #ff5a4f;
+  --warm: linear-gradient(180deg, #ffc3ae, #ff9a7d);
+  --warm-ink: #6a1610;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 20px 20px 48px; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+header.top h1 { font-family: var(--display); font-style: italic; text-transform: uppercase; font-weight: 800; font-size: 36px; letter-spacing: .5px; margin: 0; line-height: 1; text-wrap: balance; }
+header.top h1 span { color: var(--accent); }
+header.top p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.seg button { background: none; border: 0; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-weight: 500; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; box-shadow: 0 0 12px rgba(63,216,255,.35); }
+.seg-label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+
+.stage { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: center; }
+.stage[data-view="phone"] .aa-col { display: none; }
+.stage[data-view="aa"] .phone-col { display: none; }
+.col-label { font-family: var(--display); font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px 4px; }
+
+/* ---------- Handy ---------- */
+.phone { width: 360px; height: 760px; border-radius: 44px; background: #05070b; padding: 10px; box-shadow: 0 0 0 2px #2b3442, 0 30px 60px -20px rgba(0,0,0,.7); }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: #0e151f; }
+.screen canvas.map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.statusbar { position: absolute; top: 0; left: 0; right: 0; height: 30px; display: flex; justify-content: space-between; align-items: center; padding: 0 26px; font-size: 12px; font-weight: 600; z-index: 5; color: #dfe6ef; font-variant-numeric: tabular-nums; }
+.statusbar .icons { display: flex; gap: 5px; align-items: center; }
+.statusbar .icons i { display: block; width: 14px; height: 9px; border: 1.5px solid #dfe6ef; border-radius: 2px; position: relative; }
+.statusbar .icons i::after { content: ""; position: absolute; inset: 1px 4px 1px 1px; background: #dfe6ef; }
+.statusbar .icons b { display: block; width: 3px; height: 9px; background: #dfe6ef; border-radius: 1px; }
+.overlay-top { position: absolute; top: 34px; left: 10px; right: 10px; display: grid; gap: 8px; z-index: 4; }
+.overlay-bottom { position: absolute; bottom: 10px; left: 10px; right: 10px; display: grid; gap: 8px; z-index: 4; }
+
+.navbanner { display: flex; align-items: center; gap: 12px; background: var(--panel-2); border: 1px solid var(--line); color: #fff; border-radius: 16px; padding: 10px 14px; box-shadow: 0 8px 20px -10px rgba(0,0,0,.8); }
+.navbanner svg { flex: none; }
+.navbanner .nb-dist { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.navbanner .nb-text { font-size: 13px; opacity: .9; }
+.navbanner .nb-src { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: .65; text-align: right; }
+
+.pn { position: relative; background: rgba(8,20,44,.94); border: 1px solid var(--line); border-radius: 18px; padding: 12px 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; overflow: hidden; backdrop-filter: blur(6px); }
+.pn::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--accent); }
+.pn.danger::before { background: var(--danger); }
+.pn.danger { border-color: rgba(255,79,79,.55); }
+.pn .glyph { width: 84px; height: 84px; display: block; }
+.pn .pn-title { font-family: var(--display); font-style: italic; text-transform: uppercase; font-weight: 800; font-size: 28px; line-height: .95; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 2px; }
+.pn .pn-title.long { font-size: 19px; line-height: 1.05; white-space: normal; text-wrap: balance; overflow: visible; }
+.pn .pn-warn { display: none; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--danger); margin-bottom: 3px; }
+.pn.danger .pn-warn { display: block; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chips span { font-size: 11.5px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: rgba(63,216,255,.12); color: var(--accent); white-space: nowrap; }
+.chips span.red { background: rgba(255,79,79,.16); color: #ff8a8a; }
+.pn .pn-dist { text-align: right; font-family: var(--display); font-variant-numeric: tabular-nums; }
+.pn .pn-dist b { display: block; font-size: 30px; font-weight: 700; line-height: 1; }
+.pn .pn-dist small { color: var(--muted); font-size: 14px; }
+.pn .pn-bar { position: absolute; left: 5px; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.06); }
+.pn .pn-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .1s linear; }
+.pn.danger .pn-bar i { background: var(--danger); }
+.pn.flash { animation: flash .6s ease-out; }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--accent), 0 0 24px rgba(63,216,255,.6); } to { box-shadow: 0 0 0 0 transparent; } }
+.pn-next { display: block; font-size: 13px; color: var(--muted); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-next b { color: var(--ink); font-weight: 600; }
+.pn-next span, .pn-next b { margin-right: 6px; }
+.pn .pn-dist b.now { font-size: 22px; color: var(--accent); }
+.pn.danger .pn-dist b.now { color: var(--danger); }
+
+.tape { position: relative; height: 40px; background: rgba(16,22,31,.92); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.tape .tape-lbl { position: absolute; left: 8px; top: 3px; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.tape .tape-track { position: absolute; left: 10px; right: 10px; bottom: 9px; height: 2px; background: var(--line); }
+.tape .mk { position: absolute; bottom: 4px; transform: translateX(-50%); font-family: var(--display); font-weight: 700; font-size: 13px; padding: 0 4px; border-radius: 4px; background: var(--panel-2); color: var(--accent); white-space: nowrap; line-height: 16px; }
+.tape .mk.v { color: var(--accent); }
+.tape .mk.d { background: var(--danger); color: #fff; }
+
+.bottombar { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: rgba(16,22,31,.95); border: 1px solid var(--line); border-radius: 18px; padding: 10px 12px; }
+.speed { width: 58px; height: 58px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 14px rgba(63,216,255,.3); display: grid; place-items: center; text-align: center; font-family: var(--display); line-height: .9; }
+.speed b { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.speed small { display: block; font-size: 10px; color: var(--muted); }
+.eta b { font-family: var(--display); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.eta div { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.round { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); display: grid; place-items: center; }
+.round.warn { background: #3a1d1f; border-color: #6b2c2f; color: #ffb3b3; }
+.btnrow { display: flex; gap: 8px; }
+
+/* Planung */
+.search { display: flex; align-items: center; gap: 10px; background: #1b2431; border: 1px solid var(--line); border-radius: 26px; padding: 10px 16px; box-shadow: 0 8px 20px -12px rgba(0,0,0,.9); }
+.search input { flex: 1; background: none; border: 0; outline: none; font-size: 15px; min-width: 0; }
+.search input::placeholder { color: var(--muted); }
+.sugg { background: #1b2431; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: none; }
+.sugg.open { display: block; }
+.sugg button { display: flex; width: 100%; text-align: left; gap: 10px; align-items: center; background: none; border: 0; padding: 10px 14px; border-top: 1px solid var(--line); }
+.sugg button:first-child { border-top: 0; }
+.sugg button:hover, .sugg button:focus-visible { background: var(--panel-2); }
+.sugg small { display: block; color: var(--muted); font-size: 12px; }
+.sugg .hint { padding: 10px 14px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.sheet { background: rgba(16,22,31,.97); border: 1px solid var(--line); border-radius: 22px; padding: 16px; display: grid; gap: 12px; }
+.sheet h3 { margin: 0; font-family: var(--display); font-style: italic; text-transform: uppercase; font-size: 26px; font-weight: 800; line-height: 1.05; }
+.sheet .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.stats div { background: var(--panel-2); border-radius: 10px; padding: 7px 6px; text-align: center; }
+.stats b { display: block; font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stats div.d b { color: var(--danger); }
+.stats small { font-size: 10.5px; color: var(--muted); }
+.go { background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-style: italic; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; box-shadow: 0 0 18px rgba(63,216,255,.35); border: 0; border-radius: 14px; padding: 13px; font-weight: 600; font-size: 16px; display: flex; justify-content: center; gap: 8px; align-items: center; }
+.go:hover { filter: brightness(1.07); }
+
+.toast { position: absolute; left: 16px; right: 16px; top: 46%; z-index: 9; background: #222c3a; border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s; }
+.toast.show { opacity: 1; }
+.pop { position: absolute; right: 10px; bottom: 100px; z-index: 8; background: #1b2431; border: 1px solid var(--line); border-radius: 16px; padding: 6px; display: none; min-width: 190px; box-shadow: 0 14px 30px -10px rgba(0,0,0,.9); }
+.pop.open { display: grid; }
+.pop .pop-h { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 6px 10px 4px; }
+.pop button { background: none; border: 0; text-align: left; padding: 9px 10px; border-radius: 10px; font-size: 14px; }
+.pop button:hover, .pop button:focus-visible { background: var(--panel-2); }
+
+[hidden] { display: none !important; }
+
+/* ---------- Android Auto ---------- */
+.aa-col { flex: 1 1 560px; max-width: 840px; min-width: 300px; }
+.aa-frame { background: #05070b; border-radius: 18px; padding: 10px; box-shadow: 0 0 0 2px #2b3442, 0 30px 60px -20px rgba(0,0,0,.7); }
+.aa-scaler { position: relative; width: 100%; aspect-ratio: 800 / 450; overflow: hidden; border-radius: 10px; }
+.aa { position: absolute; left: 0; top: 0; width: 800px; height: 450px; transform-origin: 0 0; background: #0e151f; overflow: hidden; }
+.aa canvas.map { position: absolute; left: 76px; top: 0; width: 724px; height: 450px; display: block; }
+.aa .rail { position: absolute; left: 0; top: 0; bottom: 0; width: 76px; background: #06090e; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 16px 0; z-index: 3; }
+.aa .rail .clock { font-weight: 600; font-size: 17px; font-variant-numeric: tabular-nums; }
+.aa .rail .ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #b8c3d1; }
+.aa .rail .ic.on { background: var(--panel-2); color: var(--accent); }
+.aa .rail .ic.mic { margin-top: auto; }
+.aa .navcard { position: absolute; left: 88px; top: 12px; width: 300px; z-index: 4; display: grid; gap: 8px; }
+.aa .navcard .navbanner { border-radius: 14px; padding: 9px 12px; }
+.aa .pn { grid-template-columns: auto minmax(0, 1fr) auto; padding: 10px; border-radius: 14px; }
+.aa .pn .glyph { width: 70px; height: 70px; }
+.aa .pn .pn-title { font-size: 28px; }
+.aa .pn .pn-title.long { font-size: 20px; }
+.aa .pn .pn-dist b { font-size: 30px; }
+.aa .strip { position: absolute; right: 12px; top: 12px; display: grid; gap: 10px; z-index: 4; }
+.aa .strip .round { width: 52px; height: 52px; background: rgba(21,29,41,.95); }
+.aa .strip .round.txt { font-family: var(--display); font-weight: 700; font-size: 15px; }
+.aa .est { position: absolute; left: 88px; bottom: 12px; z-index: 4; display: flex; gap: 14px; align-items: baseline; background: rgba(16,22,31,.95); border: 1px solid var(--line); border-radius: 14px; padding: 9px 14px; font-variant-numeric: tabular-nums; }
+.aa .est b { font-family: var(--display); font-size: 22px; font-weight: 700; color: var(--ink); }
+.aa .est span { font-size: 14px; color: #c9d3df; }
+.aa .aaspeed { position: absolute; right: 14px; bottom: 14px; z-index: 4; }
+.aa .aaspeed .speed { width: 64px; height: 64px; background: rgba(16,22,31,.95); }
+.aa .aaplan { position: absolute; left: 88px; top: 12px; width: 320px; z-index: 4; }
+.aa .aaplan .sheet { padding: 14px; gap: 10px; }
+
+.card.log { margin-top: 20px; }
+#log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#log li { display: grid; grid-template-columns: 54px 1fr; gap: 10px; align-items: baseline; padding: 7px 10px; border-radius: 10px; background: var(--panel-2); font-size: 14px; }
+#log li.empty { display: block; background: none; color: var(--muted); padding: 0; }
+#log li time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+#log li.d { box-shadow: inset 3px 0 0 var(--danger); }
+#log li:first-child:not(.empty) { box-shadow: inset 3px 0 0 var(--accent); }
+#log li.d:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+.card.voices { margin-top: 20px; }
+.vrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.vrow label, .vrow .lbl { font-size: 13px; color: var(--muted); min-width: 86px; }
+#voiceSel { flex: 1; min-width: 200px; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; }
+.samples { display: grid; gap: 6px; }
+.samples button { display: flex; gap: 10px; align-items: center; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; }
+.samples button:hover { border-color: var(--muted); }
+.samples button.d { box-shadow: inset 3px 0 0 var(--danger); }
+.samples button svg { flex: none; }
+.samples small { color: var(--muted); margin-left: auto; font-size: 12px; white-space: nowrap; }
+.vnote { margin: 10px 0 0 !important; font-size: 12.5px !important; }
+.voicebtn { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; text-align: left; }
+.voicebtn .vb-l { font-size: 12px; color: var(--muted); }
+.voicebtn .vb-n { flex: 1; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vpage { position: absolute; inset: 0; z-index: 7; background: var(--bg); padding: 40px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.vp-head { display: flex; gap: 12px; align-items: center; }
+.vp-head h3 { margin: 0; font-family: var(--display); font-style: italic; text-transform: uppercase; font-weight: 800; font-size: 26px; line-height: 1; }
+.vp-head .sub { font-size: 12px; color: var(--muted); }
+.vp-filter { align-self: flex-start; }
+.vp-sample { display: flex; flex-direction: column; gap: 4px; }
+.vp-sample label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.vp-sample select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; }
+.vp-list { flex: 1; overflow-y: auto; display: grid; gap: 6px; align-content: start; padding-right: 2px; }
+.vp-sec { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 8px 2px 0; display: flex; justify-content: space-between; gap: 8px; }
+.vp-sec span:last-child { text-transform: none; letter-spacing: 0; }
+.vrow2 { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; cursor: pointer; }
+.vrow2.sel { border-color: var(--accent); box-shadow: 0 0 14px rgba(63,216,255,.3); }
+.vrow2 .av { width: 36px; height: 36px; border-radius: 50%; background: var(--panel-2); display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 17px; }
+.vrow2 b { display: block; font-size: 14px; }
+.vrow2 small { color: var(--muted); font-size: 11.5px; }
+.vrow2 .play { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); display: grid; place-items: center; }
+.vrow2 .play.on { background: var(--accent); color: var(--accent-ink); }
+.vp-note { font-size: 11px; color: var(--muted); margin: 0; }
+.vp-note a { color: var(--ink); }
+.hzfab { position: absolute; top: 92px; right: 12px; z-index: 3; display: flex; gap: 6px; align-items: center; background: #3a1d1f; color: #ffc9c9; border: 1px solid #6b2c2f; border-radius: 20px; padding: 7px 12px; font-size: 13px; font-weight: 600; }
+.placehint { position: absolute; top: 34px; left: 10px; right: 10px; z-index: 6; display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--danger); color: #fff; border-radius: 14px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
+.placehint button { background: rgba(0,0,0,.25); border: 0; border-radius: 8px; padding: 5px 9px; color: #fff; font-size: 12px; }
+.hzsheet { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 6; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 16px; display: grid; gap: 12px; }
+.hzsheet h3 { margin: 0; font-family: var(--display); font-size: 24px; line-height: 1; }
+.hzsheet .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.kinds button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 18px; padding: 6px 11px; font-size: 13px; }
+.kinds button[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+#hzNote { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font-size: 14px; }
+.hzbtns { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.ghost { background: none; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.rcol { display: grid; gap: 20px; align-content: start; min-width: 0; }
+.cloudstat { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 10px; color: var(--muted); }
+.cloudstat i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.cloudstat.on i { background: var(--accent); box-shadow: 0 0 0 3px rgba(63,216,255,.2); }
+.cloudstat.on { color: var(--ink); }
+.commlist { display: grid; gap: 6px; }
+.commlist .empty { color: var(--muted); font-size: 13px; }
+.crow { background: var(--panel-2); border-radius: 12px; padding: 9px 11px; display: grid; gap: 6px; box-shadow: inset 3px 0 0 var(--danger); }
+.crow.gone { opacity: .5; box-shadow: none; }
+.crow .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.crow .top b { font-size: 14px; }
+.crow .top span { font-size: 12px; color: var(--muted); }
+.crow .note { font-size: 13px; }
+.crow .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.crow .acts button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; font-size: 12px; }
+.crow .acts button[aria-pressed="true"] { border-color: var(--ink); }
+.pn .pn-dist .vmax { display: block; margin-top: 6px; font-style: normal; font-family: var(--display); font-weight: 700; font-size: 15px; line-height: 1; padding: 4px 6px; border: 2px solid var(--accent); color: var(--accent); border-radius: 7px; text-align: center; white-space: nowrap; }
+.pn .pn-dist .vmax:empty { display: none; }
+.pn.over { border-color: var(--danger); }
+.pn.over .pn-dist .vmax { border-color: var(--danger); background: var(--danger); color: #fff; }
+.speed.over { border-color: var(--danger); color: var(--danger); }
+/* --- Vorlage: Seiten im Handy --- */
+.screen.tilt canvas.map { transform: perspective(640px) rotateX(34deg) scale(1.45); transform-origin: 50% 78%; }
+.aa.tilt canvas.map { transform: perspective(900px) rotateX(32deg) scale(1.35); transform-origin: 55% 80%; }
+.page { position: absolute; inset: 0; z-index: 7; background: var(--bg); padding: 40px 12px 12px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.page .scroll { flex: 1; overflow-y: auto; display: grid; gap: 10px; align-content: start; padding-right: 2px; }
+.lbl2 { font-size: 11px; color: var(--muted); letter-spacing: .5px; margin: 4px 2px -4px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; font-size: 13px; font-weight: 600; }
+.grid2 button.wide { grid-column: span 2; }
+.grid2 button[aria-pressed="true"] { background: #7a1e1a; border-color: #ff8a6b; color: #fff; box-shadow: 0 0 14px rgba(255,120,90,.45); }
+.warmbtn { background: var(--warm); color: var(--warm-ink); border: 0; border-radius: 14px; padding: 14px; font-family: var(--display); font-style: italic; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; font-size: 17px; box-shadow: 0 0 18px rgba(255,140,110,.35); }
+.minimap { position: relative; height: 128px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #050d20; }
+.minimap canvas { width: 100%; height: 100%; display: block; }
+.minimap .mm-l { position: absolute; left: 10px; bottom: 8px; font-size: 12px; font-weight: 600; background: rgba(6,16,38,.85); padding: 3px 8px; border-radius: 8px; }
+.minimap .mm-b { position: absolute; right: 8px; bottom: 8px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; }
+#hzNote2, #setGroup { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 14px; width: 100%; }
+.seg.full { display: flex; width: 100%; }
+.seg.full button { flex: 1; }
+.persona { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; cursor: pointer; }
+.persona.sel { border-color: var(--accent); box-shadow: 0 0 14px rgba(63,216,255,.3); }
+.persona .play { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); display: grid; place-items: center; color: var(--accent); }
+.persona.sel .play { background: var(--accent); color: var(--accent-ink); }
+.persona b { display: block; font-size: 14px; }
+.persona small { color: var(--muted); font-size: 12px; }
+.persona .tick { color: var(--accent); font-weight: 700; }
+.persona.soon { opacity: .6; cursor: default; }
+.persona.soon .play { color: var(--muted); }
+.setsec { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
+.setsec h4 { margin: 0; font-family: var(--display); font-style: italic; text-transform: uppercase; font-size: 17px; letter-spacing: .5px; color: var(--accent); }
+.setrow { display: grid; gap: 5px; }
+.setrow > span { font-size: 13px; font-weight: 600; }
+.setrow > small { font-size: 11.5px; color: var(--muted); margin-top: -2px; }
+.setrow .seg { flex-wrap: wrap; }
+.setrow .seg button { padding: 5px 9px; font-size: 12.5px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.duo .voicebtn { min-width: 0; padding: 10px; gap: 6px; }
+.duo .voicebtn .vb-n { font-size: 13px; }
+.chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips2 button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 6px 11px; font-size: 12.5px; color: var(--muted); }
+.chips2 button[aria-pressed="true"] { background: rgba(63,216,255,.14); border-color: var(--accent); color: var(--accent); }
+.chips2 button[aria-pressed="true"]::before { content: "✓ "; }
+.warnhelp { font-size: 11.5px; color: var(--muted); margin-top: -4px; }
+/* ---------- Unterer Teil ---------- */
+.lower { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 900px) { .lower { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; min-width: 0; }
+.card h2 { font-family: var(--display); font-style: italic; text-transform: uppercase; font-size: 23px; font-weight: 800; margin: 0 0 4px; letter-spacing: .3px; }
+.card > p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; max-width: 65ch; }
+.tablewrap { overflow-x: auto; max-height: 440px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; font-size: 12px; color: var(--muted); z-index: 1; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel-2); }
+tbody tr.past { opacity: .45; }
+tbody tr.now { background: rgba(63,216,255,.1); }
+td .tag { display: inline-block; font-family: var(--display); font-weight: 700; font-size: 15px; min-width: 40px; text-align: center; padding: 0 6px; border-radius: 5px; background: var(--panel-2); color: var(--accent); }
+td .tag.d { background: var(--danger); color: #fff; }
+td .tag.v { color: var(--accent); }
+.scale { display: grid; gap: 6px; }
+.scale .row { display: grid; grid-template-columns: 46px 52px 1fr auto; gap: 10px; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 6px 10px; }
+.scale .row canvas { width: 46px; height: 46px; }
+.scale .row b { font-family: var(--display); font-size: 20px; }
+.scale .row span { font-size: 13px; }
+.scale .row small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; line-height: 1.35; }
+.notes { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.notes li { padding-left: 14px; position: relative; }
+.notes li::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.notes b { color: var(--ink); font-weight: 600; }
+@media (max-width: 420px) {
+  .wrap { padding: 14px 12px 40px; }
+  .phone { width: 340px; height: 720px; }
+}
+@media (prefers-reduced-motion: reduce) { .pn.flash { animation: none; } .pn .pn-bar i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Beifahrer <span>Rallye-Ansagen</span></h1>
+      <p>Prototyp: Ziel eingeben, Route wird analysiert, dann sagt die App jede Kurve, Kuppe und gemeldete Gefahr rechtzeitig an. Alles Wichtige stellst du in der App unter ⚙ Einstellungen ein. Links das Handy, rechts dieselbe Fahrt in Android Auto.</p>
+    </div>
+    <div class="controls">
+      <div><span class="seg-label">Ansicht</span>
+        <div class="seg" id="segView"><button data-v="both" aria-pressed="true">Beide</button><button data-v="phone" aria-pressed="false">Handy</button><button data-v="aa" aria-pressed="false">Android Auto</button></div></div>
+      <div><span class="seg-label">Zeitraffer</span>
+        <div class="seg" id="segSpeed"><button data-v="1" aria-pressed="false">1×</button><button data-v="2" aria-pressed="true">2×</button><button data-v="4" aria-pressed="false">4×</button></div></div>
+    </div>
+  </header>
+
+  <section class="stage" id="stage" data-view="both">
+    <div class="phone-col">
+      <div class="col-label">Handy</div>
+      <div class="phone"><div class="screen" id="phone">
+        <canvas class="map" id="phoneMap"></canvas>
+        <div class="statusbar"><span class="clk">--:--</span><span class="icons"><b></b><b></b><i></i></span></div>
+
+        <!-- Planung -->
+        <div class="overlay-top" id="pPlanTop">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="dest" type="text" autocomplete="off" placeholder="Ziel eingeben" aria-label="Ziel eingeben">
+          </div>
+          <div class="sugg" id="sugg"></div>
+        </div>
+        <button class="hzfab" id="btnPlace" aria-label="Gefahr auf der Karte eintragen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></svg>Gefahr eintragen</button>
+        <div class="placehint" id="placeHint" hidden><span>Tippe auf die Straße, wo die Gefahr ist</span><button id="placeCancel">Abbrechen</button></div>
+        <div class="overlay-bottom" id="pPlanBottom">
+          <div class="sheet">
+            <div><h3 id="pRouteName">Passstraße</h3><div class="sub" id="pRouteSub"></div></div>
+            <div class="stats" id="pStats"></div>
+            <div class="duo">
+              <button class="voicebtn" id="btnVoices"><span class="vb-l">Stimme</span><span class="vb-n" id="voiceLabel">Max</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+              <button class="voicebtn" id="btnSettings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span class="vb-n">Einstellungen</span></button>
+            </div>
+            <button class="go" id="btnStart"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z"/></svg>Fahrt starten</button>
+          </div>
+        </div>
+
+        <!-- Fahrt -->
+        <div class="overlay-top" id="pDriveTop" hidden>
+          <div class="navbanner">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 6 10h4v11h4V10h4z"/></svg>
+            <div><div class="nb-dist" data-bind="navDist">4,2 km</div><div class="nb-text" data-bind="navText">Der Straße folgen</div></div>
+            <div class="nb-src">Navigation<br>SDK</div>
+          </div>
+          <div class="pn" data-pn>
+            <canvas class="glyph" width="168" height="168"></canvas>
+            <div><div class="pn-warn" data-bind="warn">Vorsicht</div><div class="pn-title" data-bind="title">–</div><div class="chips" data-bind="chips"></div></div>
+            <div class="pn-dist"><b data-bind="dist">–</b><small data-bind="distUnit">m</small><em class="vmax" data-bind="vmaxPhone"></em></div>
+            <div class="pn-bar"><i data-bind="bar"></i></div>
+          </div>
+          <div class="pn-next" data-bind="next"></div>
+        </div>
+        <div class="overlay-bottom" id="pDriveBottom" hidden>
+          <div class="tape"><span class="tape-lbl">Vorschau 600 m</span><div class="tape-track"></div><div data-bind="tape"></div></div>
+          <div class="bottombar">
+            <div class="speed"><div><b data-bind="speed">0</b><small>km/h</small></div></div>
+            <div class="eta"><b data-bind="eta">--:--</b><div data-bind="remain">– km · – min</div></div>
+            <div class="btnrow">
+              <button class="round warn" id="btnHazard" aria-label="Gefahr melden" title="Gefahr melden"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></svg></button>
+              <button class="round" id="btnSettings2" aria-label="Einstellungen" title="Einstellungen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
+              <button class="round" id="btnStop" aria-label="Fahrt beenden" title="Fahrt beenden"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div class="pop" id="pop">
+          <div class="pop-h">Gefahr an dieser Stelle melden</div>
+          <button data-h="Bodenwelle">Bodenwelle</button>
+          <button data-h="Schlagloch">Schlagloch</button>
+          <button data-h="Rollsplitt">Rollsplitt</button>
+          <button data-h="Steilkurve">Steilkurve</button>
+          <button data-h="Glätte">Glätte / Nässe</button>
+          <button data-h="Wildwechsel">Wildwechsel</button>
+          <button data-h="Baustelle">Baustelle</button>
+        </div>
+        <!-- Gefahr melden -->
+        <div class="page" id="pHazard" hidden>
+          <div class="vp-head"><button class="round" data-close aria-label="Zurück"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div><h3>Gefahr melden</h3><div class="sub">Geht an alle Fahrer über die Cloud</div></div></div>
+          <div class="scroll">
+            <div class="minimap"><canvas id="hzMap"></canvas><span class="mm-l" id="hzWhere">Hier</span><button class="mm-b" id="hzMove">Pin verschieben</button></div>
+            <div class="lbl2">Was ist dort?</div>
+            <div class="grid2" id="hzKinds"></div>
+            <div class="lbl2">Notiz (optional)</div>
+            <input id="hzNote2" type="text" maxlength="80" placeholder="z. B. mitten im Kurvenausgang" aria-label="Notiz">
+            <div class="lbl2">Sichtbar für</div>
+            <div class="seg full" id="hzVis"><button data-v="all" aria-pressed="true">Alle Fahrer</button><button data-v="group" aria-pressed="false">Meine Gruppe</button></div>
+          </div>
+          <button class="warmbtn" id="hzSave">Bodenwelle melden</button>
+        </div>
+        <!-- Stimme wählen -->
+        <div class="page" id="pVoices" hidden>
+          <div class="vp-head"><button class="round" data-close aria-label="Zurück"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div><h3>Stimme wählen</h3><div class="sub">Tippe ▶ zum Anhören</div></div></div>
+          <div class="scroll">
+            <div class="lbl2">Ansage-Stil</div>
+            <div class="seg full" id="vStyle"><button data-v="rally" aria-pressed="true">Rallye-kurz</button><button data-v="plain" aria-pressed="false">Normal erklärt</button></div>
+            <div class="lbl2">KI-Stimmen</div>
+            <div id="vPersonas" style="display:grid;gap:8px"></div>
+            <div class="persona soon" aria-disabled="true"><div class="play"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div><div><b>Eigene Stimme aufnehmen</b><small>ca. 40 Wörter, wie ein echter Beifahrer · kommt in der App</small></div><span></span></div>
+            <details><summary class="lbl2" style="cursor:pointer">Alle Google-Stimmen anzeigen</summary><div class="vp-list" id="vpList" style="margin-top:8px"></div></details>
+            <div class="lbl2">Tempo</div>
+            <div class="seg full" id="vRate"><button data-v="langsam" aria-pressed="false">Langsam</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="schnell" aria-pressed="false">Schnell</button></div>
+            <p class="vp-note">Vorschau nutzt die Stimmen deines Browsers. In der App kommen echte KI-Stimmen, die klingen deutlich natürlicher.</p>
+          </div>
+          <button class="go" id="vTake">Stimme Max übernehmen</button>
+        </div>
+        <!-- Einstellungen -->
+        <div class="page" id="pSettings" hidden>
+          <div class="vp-head"><button class="round" data-close aria-label="Zurück"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div><h3>Einstellungen</h3><div class="sub">Gilt sofort, auch während der Fahrt</div></div></div>
+          <div class="scroll" id="setBody"></div>
+        </div>        <div class="toast" id="toast"></div>
+      </div></div>
+    </div>
+
+    <div class="aa-col">
+      <div class="col-label">Android Auto</div>
+      <div class="aa-frame"><div class="aa-scaler" id="aaScaler"><div class="aa" id="aa">
+        <div class="rail">
+          <div class="clock clk">--:--</div>
+          <div class="ic on" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z"/></svg></div>
+          <div class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+          <div class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></div>
+          <div class="ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg></div>
+          <div class="ic mic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        </div>
+        <canvas class="map" id="aaMap"></canvas>
+        <div class="aaplan" id="aPlan">
+          <div class="sheet">
+            <div><h3 data-bind-aa="name">Passstraße</h3><div class="sub" data-bind-aa="sub"></div></div>
+            <div class="stats" id="aStats"></div>
+            <button class="go" id="btnStartAA">Los</button>
+          </div>
+        </div>
+        <div class="navcard" id="aDrive" hidden>
+          <div class="navbanner">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 6 10h4v11h4V10h4z"/></svg>
+            <div><div class="nb-dist" data-bind="navDist">4,2 km</div><div class="nb-text" data-bind="navText">Der Straße folgen</div></div>
+          </div>
+          <div class="pn" data-pn>
+            <canvas class="glyph" width="140" height="140"></canvas>
+            <div><div class="pn-warn" data-bind="warn">Vorsicht</div><div class="pn-title" data-bind="title">–</div><div class="chips" data-bind="chips"></div></div>
+            <div class="pn-dist"><b data-bind="dist">–</b><small data-bind="distUnit">m</small><em class="vmax" data-bind="vmaxAA"></em></div>
+            <div class="pn-bar"><i data-bind="bar"></i></div>
+          </div>
+        </div>
+        <div class="strip" id="aStrip" hidden>
+          <button class="round warn" id="aaHazard" aria-label="Gefahr melden (Bodenwelle)" title="Bodenwelle melden"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></svg></button>
+          <button class="round txt" id="aaStyle" aria-label="Ansagestil wechseln">R 3</button>
+          <button class="round" id="aaVoice" aria-label="Stimme an oder aus"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path data-wave d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+        </div>
+        <div class="est" id="aEst" hidden><b data-bind="eta">--:--</b><span data-bind="remain">–</span></div>
+        <div class="aaspeed" id="aSpeed" hidden><div class="speed"><div><b data-bind="speed">0</b><small>km/h</small></div></div></div>
+      </div></div></div>
+      <div class="card log">
+        <h2>Gesprochene Ansagen</h2>
+        <p>Was die Stimme gerade gesagt hat, zum Mitlesen. Mit Stimme „Aus“ läuft nur dieses Protokoll.</p>
+        <ol id="log"><li class="empty">Starte die Fahrt am Handy oder mit „Los“ im Auto-Display.</li></ol>
+      </div>
+      <div class="card voices">
+        <h2>Stimmen ausprobieren</h2>
+        <p>Die App nutzt die Sprachausgabe deines Handys. Hier hörst du die deutschen Stimmen, die dein Gerät hat. Am Android-Handy sind das dieselben wie später in der App.</p>
+        <div class="vrow">
+          <label for="voiceSel">Stimme</label>
+          <select id="voiceSel"></select>
+        </div>
+        <div class="vrow">
+          <span class="lbl">Sprechweise</span>
+          <div class="seg" id="segPreset"><button data-v="profi" aria-pressed="true">Rallye-Profi</button><button data-v="normal" aria-pressed="false">Normal</button><button data-v="ruhig" aria-pressed="false">Ruhig</button><button data-v="tief" aria-pressed="false">Tief</button></div>
+        </div>
+        <div class="samples" id="samples"></div>
+        <p class="vnote" id="voiceNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="lower">
+    <div class="card">
+      <h2>Gebetbuch dieser Strecke</h2>
+      <p>So nennen Rallye-Teams die Liste aller Ansagen. Die App erzeugt sie automatisch aus der Route, bevor die Fahrt startet. Klick auf eine Zeile springt in der Simulation kurz davor.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th class="num">km</th><th>Typ</th><th>Ansage (Rallye)</th><th>Klartext</th><th class="num">Radius</th><th class="num">Winkel</th><th class="num">max. km/h</th></tr></thead>
+        <tbody id="book"></tbody>
+      </table></div>
+    </div>
+    <div class="rcol">
+    <div class="card" id="commCard">
+      <h2>Gefahrenstellen aus der Cloud</h2>
+      <p>Jeder Eintrag landet in einer gemeinsamen Datenbank. Alle, die diese Seite offen haben, sehen neue Stellen sofort, und die Stimme sagt sie bei der nächsten Fahrt an. Mit „Noch da“ und „Weg“ halten alle die Liste aktuell.</p>
+      <div class="cloudstat" id="cloudStat"><i></i><span>Verbinde mit der Cloud …</span></div>
+      <div class="commlist" id="commList"></div>
+    </div>
+    <div class="card">
+      <h2>Kurven-Skala</h2>
+      <p>Die Zahl beschreibt die Kurve: 1 ist sehr eng, 6 fast gerade. Daneben das empfohlene Höchsttempo für den gewählten Fahrstil, nie über dem Tempolimit von 100 km/h.</p>
+      <div class="scale" id="scale"></div>
+      <ul class="notes">
+        <li><b>Kuppen und Senken</b> kommen aus den Höhendaten entlang der Route. Liegt eine Kuppe vor einer engen Kurve, gibt es eine Warnung.</li>
+        <li><b>Bodenwellen, Schlaglöcher, Steilkurven</b> stehen in keiner Karte. Die App erkennt Schläge über den Beschleunigungssensor und du kannst Stellen per Knopf melden. Beim nächsten Mal werden sie angesagt.</li>
+        <li><b>Im Prototyp simuliert:</b> Karte, Strecken und Geschwindigkeit. In der echten App kommen Karte und Route von Google, das Tempo vom GPS.</li>
+      </ul>
+    </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// ===== PaceNote-Engine (JS-Referenz, 1:1 nach Kotlin portiert) =====
+// Eingabe: Route als Punkte {x,y,z} in Metern (lokal projiziert), z = Höhe.
+// Ausgabe: Liste von Ansagen (Kurven, Kuppen, Senken, Gefahren).
+(function (global) {
+  const CFG = {
+    step: 5,              // Resampling-Abstand in m
+    curveMaxRadius: 350,  // ab hier gilt es als Kurve
+    minAngleDeg: 14,      // kleinere Richtungsänderungen ignorieren
+    mergeGap: 15,         // m: gleiche Richtung, kurze Lücke -> eine Kurve
+    linkIn: 25,           // m: "in" (direkt in die nächste)
+    linkAnd: 60,          // m: "und"
+  };
+
+  // Rallye-Skala: 1 = sehr eng ... 6 = sehr schnell
+  const GRADES = [
+    { g: 1, r: 20 }, { g: 2, r: 35 }, { g: 3, r: 55 },
+    { g: 4, r: 85 }, { g: 5, r: 130 }, { g: 6, r: 350 },
+  ];
+  const KLARTEXT = { 1: 'Sehr scharfe', 2: 'Scharfe', 3: 'Mittlere', 4: 'Zügige', 5: 'Leichte', 6: 'Sehr leichte' };
+
+  const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+
+  function resample(pts, step) {
+    const out = [{ ...pts[0], s: 0 }];
+    let s = 0, carry = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d === 0) continue;
+      let t = step - carry;
+      while (t <= d) {
+        const f = t / d;
+        s += step;
+        out.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, s });
+        t += step;
+      }
+      carry = d - (t - step);
+    }
+    return out;
+  }
+
+  function smooth(arr, half) {
+    return arr.map((_, i) => {
+      let sum = 0, w = 0;
+      for (let k = -half; k <= half; k++) {
+        const j = i + k; if (j < 0 || j >= arr.length) continue;
+        const wk = half + 1 - Math.abs(k); sum += arr[j] * wk; w += wk;
+      }
+      return sum / w;
+    });
+  }
+
+  function analyze(rawPts, opts = {}) {
+    const cfg = { ...CFG, ...opts };
+    const P = resample(rawPts, cfg.step);
+    const n = P.length;
+    // Krümmung per Kreis durch drei Punkte (Menger), Abstand m Samples.
+    // Robust gegen die eckige Form echter Google-Polylines.
+    const m = 3; // 3 x 5 m = 15 m
+    const kRaw = new Array(n).fill(0);
+    for (let i = m; i < n - m; i++) {
+      const a = P[i - m], b = P[i], c = P[i + m];
+      const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      const ab = Math.hypot(b.x - a.x, b.y - a.y), bc = Math.hypot(c.x - b.x, c.y - b.y), ca = Math.hypot(a.x - c.x, a.y - c.y);
+      kRaw[i] = 2 * cross / Math.max(ab * bc * ca, 1e-9); // 1/m, + = links
+    }
+    const k = smooth(kRaw, 1);
+    const z = smooth(P.map(p => p.z), 4);
+    const grade = z.map((_, i) => i === 0 ? 0 : (z[i] - z[i - 1]) / cfg.step);
+    const gradeS = smooth(grade, 3);
+
+    // ---- Kurven finden ----
+    const kMin = 1 / cfg.curveMaxRadius;
+    let groups = [];
+    let cur = null;
+    for (let i = 0; i < n; i++) {
+      const sign = Math.abs(k[i]) > kMin ? Math.sign(k[i]) : 0;
+      if (sign !== 0 && cur && cur.sign === sign) cur.end = i;
+      else {
+        if (cur) groups.push(cur);
+        cur = sign !== 0 ? { sign, start: i, end: i } : null;
+      }
+    }
+    if (cur) groups.push(cur);
+    // gleiche Richtung + kleine Lücke zusammenführen
+    const merged = [];
+    for (const g of groups) {
+      const last = merged[merged.length - 1];
+      if (last && last.sign === g.sign && (g.start - last.end) * cfg.step <= cfg.mergeGap) last.end = g.end;
+      else merged.push({ ...g });
+    }
+
+    const curves = [];
+    for (const g of merged) {
+      let angle = 0, kmax = 0;
+      for (let i = g.start; i <= g.end; i++) { angle += k[i] * cfg.step; kmax = Math.max(kmax, Math.abs(k[i])); }
+      const angDeg = Math.abs(angle) * 180 / Math.PI;
+      if (angDeg < cfg.minAngleDeg) continue;
+      // Kernbereich: |k| >= 60% vom Maximum (Ein-/Auslauf ausgeblendet)
+      let c0 = g.start, c1 = g.end;
+      while (Math.abs(k[c0]) < 0.6 * kmax) c0++;
+      while (Math.abs(k[c1]) < 0.6 * kmax) c1--;
+      let coreLen = 0, coreAng = 0;
+      for (let i = c0; i <= c1; i++) { coreLen += cfg.step; coreAng += Math.abs(k[i]) * cfg.step; }
+      const Rcore = coreLen / Math.max(coreAng, 1e-6);
+      const R = 0.5 * (Rcore + 1 / kmax); // engste Stelle zählt mit
+      // zieht zu / öffnet: Krümmung im 1. vs. letzten Drittel des Kerns
+      const len = g.end - g.start + 1;
+      const coreN = c1 - c0 + 1, third = Math.max(1, Math.floor(coreN / 3));
+      const avgK = (a, b) => { let s = 0, c = 0; for (let i = a; i < b; i++) { s += Math.abs(k[i]); c++; } return s / Math.max(c, 1); };
+      const kIn = avgK(c0, c0 + third), kOut = avgK(c1 - third + 1, c1 + 1);
+      let apex = g.start; for (let i = g.start; i <= g.end; i++) if (Math.abs(k[i]) > Math.abs(k[apex])) apex = i;
+      let slope = 0; for (let i = g.start; i <= g.end; i++) slope += gradeS[i]; slope /= len;
+
+      let gr = 6; for (const x of GRADES) if (R < x.r) { gr = x.g; break; }
+      const hairpin = angDeg >= 135 && R <= 30;
+      const square = !hairpin && angDeg >= 75 && angDeg <= 105 && R <= 25;
+      const mods = [];
+      if (coreN >= 6 && angDeg >= 40 && kOut > kIn * 1.3) mods.push('zieht zu');
+      else if (coreN >= 6 && angDeg >= 40 && kIn > kOut * 1.3) mods.push('öffnet');
+      if ((g.end - g.start) * cfg.step > 140 && !hairpin) mods.push('lang');
+      if (slope < -0.07) mods.push('steil bergab');
+      else if (slope > 0.11) mods.push('steil bergauf');
+      curves.push({
+        type: 'curve', dir: g.sign > 0 ? 'L' : 'R', grade: gr, hairpin, square,
+        radius: Math.round(R), angle: Math.round(angDeg),
+        s: P[g.start].s, sApex: P[apex].s, sEnd: P[g.end].s,
+        mods, slope,
+      });
+    }
+
+    // ---- Kuppen / Senken / Bodenwellen aus Höhenprofil ----
+    const vert = [];
+    const W = Math.round(30 / cfg.step); // 30 m Fenster
+    for (let i = W; i < n - W; i++) {
+      const before = (z[i] - z[i - W]) / (W * cfg.step);
+      const after = (z[i + W] - z[i]) / (W * cfg.step);
+      const change = after - before; // negativ = Kuppe
+      vert.push({ i, change });
+    }
+    // lokale Extrema der Neigungsänderung
+    const ext = [];
+    for (let j = 1; j < vert.length - 1; j++) {
+      const v = vert[j], m = Math.abs(v.change);
+      if (m < 0.045) continue;
+      if (m < Math.abs(vert[j - 1].change) || m < Math.abs(vert[j + 1].change)) continue;
+      ext.push({ s: P[v.i].s, change: v.change });
+    }
+    // Flanken einer Kuppe (bzw. Senke) nicht extra ansagen
+    const crests = [];
+    for (const e of ext) {
+      const stronger = ext.some(o => o !== e && Math.sign(o.change) !== Math.sign(e.change) && Math.abs(o.s - e.s) < 70 && Math.abs(o.change) > Math.abs(e.change));
+      if (stronger) continue;
+      if (crests.length && e.s - crests[crests.length - 1].s < 40) continue;
+      const kind = e.change < 0 ? (e.change < -0.09 ? 'Kuppe' : 'leichte Kuppe') : (e.change > 0.09 ? 'Senke' : 'Mulde');
+      crests.push({ type: 'vert', kind, s: e.s, strength: e.change });
+    }
+    // gemeldete Gefahren (Nutzer-Meldungen / Beschleunigungssensor), schon auf Routen-Meter projiziert
+    for (const hz of (opts.hazards || [])) crests.push({ type: 'hazard', kind: hz.kind, s: hz.s, strength: 0, danger: true });
+    crests.sort((a, b) => a.s - b.s);
+
+    // Kuppe in/vor Kurve -> an die Kurve hängen ("über Kuppe", Gefahr nicht einsehbar)
+    const vertFree = [];
+    for (const c of crests) {
+      const host = curves.find(cv => c.s >= cv.s - 45 && c.s <= cv.sEnd);
+      if (host && c.type === 'vert' && c.strength < 0) {
+        if (c.s < host.s) { if (!host.blindCrest) { host.blindCrest = true; host.mods.unshift('nach Kuppe'); } }
+        else if (!host.mods.includes('über Kuppe')) host.mods.push('über Kuppe');
+      } else vertFree.push(c);
+    }
+
+    // Gefahren-Bewertung
+    let prevEnd = 0;
+    for (const cv of curves) {
+      const approach = cv.s - prevEnd;
+      const reasons = [];
+      if (cv.grade <= 2 && approach > 300) reasons.push('nach langer Geraden');
+      if (cv.mods.includes('zieht zu') && cv.grade <= 4) reasons.push('zieht zu');
+      if (cv.blindCrest && cv.grade <= 4) reasons.push('nicht einsehbar');
+      if (cv.hairpin && cv.slope < -0.05) reasons.push('Haarnadel bergab');
+      cv.danger = reasons.length > 0; cv.dangerReasons = reasons;
+      prevEnd = cv.sEnd;
+    }
+
+    // Zusammenführen, Verbindungen und Distanzen
+    const notes = [...curves, ...vertFree].sort((a, b) => a.s - b.s);
+    for (let i = 0; i < notes.length; i++) {
+      const a = notes[i], b = notes[i + 1];
+      const end = a.sEnd ?? a.s;
+      a.link = null; a.dist = null;
+      if (!b) continue;
+      const gap = b.s - end;
+      if (a.type === 'curve' && b.type === 'curve' && gap <= cfg.linkIn) a.link = 'in';
+      else if (a.type === 'curve' && b.type === 'curve' && gap <= cfg.linkAnd) a.link = 'und';
+      else if (gap >= 90) a.dist = gap >= 500 ? 500 : Math.round(gap / 50) * 50;
+    }
+    notes.forEach((nt, i) => { nt.id = i; nt.rally = toRally(nt); nt.plain = toPlain(nt); });
+    return { points: P, notes, length: P[n - 1].s, z };
+  }
+
+  function curveCore(nt) {
+    const side = nt.dir === 'L' ? 'Links' : 'Rechts';
+    if (nt.hairpin) return `${side} Haarnadel`;
+    if (nt.square) return `${side} Quadrat`;
+    return `${side} ${nt.grade}`;
+  }
+  function toRally(nt) {
+    let t;
+    if (nt.type !== 'curve') t = nt.kind;
+    else t = [curveCore(nt), ...nt.mods].join(' ');
+    if (nt.danger) t = 'Vorsicht! ' + t;
+    if (nt.link) t += ' ' + nt.link;
+    else if (nt.dist) t += nt.dist >= 500 ? ', lange Gerade' : `, ${nt.dist}`;
+    return t;
+  }
+  function toPlain(nt) {
+    let t;
+    if (nt.type === 'vert') t = { 'Kuppe': 'Kuppe, Sicht eingeschränkt', 'leichte Kuppe': 'Leichte Kuppe', 'Senke': 'Senke', 'Mulde': 'Mulde' }[nt.kind];
+    else if (nt.type === 'hazard') t = nt.kind;
+    else {
+      const side = nt.dir === 'L' ? 'Links' : 'Rechts';
+      if (nt.hairpin) t = `Haarnadelkurve ${side.toLowerCase()}`;
+      else if (nt.square) t = `${side}kurve, 90 Grad`;
+      else t = `${KLARTEXT[nt.grade]} ${side}kurve`;
+      if (nt.mods.length) t += ', ' + nt.mods.join(', ');
+    }
+    if (nt.danger) t = 'Achtung, ' + t;
+    if (nt.link === 'in') t += ', direkt danach';
+    else if (nt.link === 'und') t += ', dann';
+    else if (nt.dist >= 500) t += ', danach lange Gerade';
+    return t;
+  }
+
+  // Empfohlenes Kurventempo: v = Wurzel(Querbeschleunigung x Radius), bei Nässe weniger,
+  // nie über dem Tempolimit, auf 5 km/h abgerundet. Querbeschleunigung je Fahrstil (m/s²).
+  const STYLES = { gemuetlich: 2.5, normal: 3.5, sportlich: 4.5 };
+  function curveSpeed(radius, style = 'normal', wet = false, limitKmh = 100) {
+    const a = (STYLES[style] || STYLES.normal) * (wet ? 0.7 : 1);
+    const v = Math.sqrt(a * Math.max(radius, 5)) * 3.6;
+    return Math.max(15, Math.min(limitKmh, Math.floor(v / 5) * 5));
+  }
+
+  global.PaceEngine = { analyze, CFG, curveSpeed, STYLES };
+  if (typeof module !== 'undefined') module.exports = global.PaceEngine;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+// ===== Demo-Routen (ersetzt im Prototyp die Google-Routen-Antwort) =====
+// Aus Bausteinen gebaut, dann unregelmäßig abgetastet wie eine echte Polyline.
+// Die Engine kennt die Bausteine NICHT – sie erkennt alles aus den Punkten.
+(function (global) {
+  function build(spec) {
+    let x = 0, y = 0, h = Math.PI / 2; // Start Richtung Norden
+    const pts = [{ x, y, s: 0 }];
+    let s = 0;
+    const ds = 1;
+    for (const p of spec.parts) {
+      if (p[0] === 'S') { // Gerade
+        for (let d = 0; d < p[1]; d += ds) { x += Math.cos(h) * ds; y += Math.sin(h) * ds; s += ds; pts.push({ x, y, s }); }
+      } else { // Bogen: ['L'|'R', radius, winkel, (radiusEnde)]
+        const [dir, r0, ang, r1 = r0] = p;
+        const total = (ang * Math.PI / 180);
+        let turned = 0;
+        while (turned < total) {
+          const r = r0 + (r1 - r0) * (turned / total);
+          const dh = ds / r;
+          h += dir === 'L' ? dh : -dh; turned += dh;
+          x += Math.cos(h) * ds; y += Math.sin(h) * ds; s += ds; pts.push({ x, y, s });
+        }
+      }
+    }
+    // Höhenprofil: Grundverlauf + gezielte Kuppen/Senken/Wellen
+    for (const pt of pts) {
+      let z = spec.base(pt.s);
+      for (const [c, w, a] of spec.bumps) z += a * Math.exp(-(((pt.s - c) / w) ** 2));
+      pt.z = z;
+    }
+    // unregelmäßig ausdünnen (Polyline-Charakter) + leichtes Rauschen
+    let seed = spec.seed;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const out = [];
+    let next = 0;
+    for (const pt of pts) {
+      if (pt.s >= next) {
+        out.push({ x: pt.x + (rnd() - 0.5) * 0.6, y: pt.y + (rnd() - 0.5) * 0.6, z: pt.z });
+        next = pt.s + 4 + rnd() * 10;
+      }
+    }
+    out.push({ ...pts[pts.length - 1] });
+    return out;
+  }
+
+  const ROUTES = [
+    {
+      id: 'pass', name: 'Passstraße', sub: 'Demo · 6,9 km · Serpentinen bergauf',
+      seed: 7,
+      hazards: [{ s: 1420, kind: 'Bodenwelle (gemeldet)' }, { s: 3200, kind: 'Rollsplitt (gemeldet)' }],
+      base: s => s * 0.075,
+      bumps: [[640, 25, 3.2], [1700, 35, -2.5], [2650, 18, 2.4], [3720, 14, 0.9], [4850, 30, 3.5], [5600, 12, 0.8]],
+      parts: [['S', 300], ['R', 180, 25], ['S', 160], ['L', 70, 60], ['S', 40], ['R', 60, 100, 24], ['S', 220],
+        ['L', 14, 175], ['S', 140], ['R', 15, 170], ['S', 160], ['L', 13, 180], ['S', 260],
+        ['R', 110, 45], ['L', 60, 50], ['S', 30], ['R', 30, 90], ['S', 380],
+        ['L', 25, 95], ['S', 90], ['R', 300, 18], ['S', 120], ['L', 55, 110, 20], ['S', 200],
+        ['R', 16, 165], ['S', 170], ['L', 16, 160], ['S', 300], ['R', 90, 70], ['S', 80], ['L', 140, 40], ['S', 450],
+        ['R', 22, 120], ['S', 50], ['L', 55, 75], ['S', 300]],
+    },
+    {
+      id: 'berg', name: 'Bergrennstrecke', sub: 'Demo · 5,6 km · schnell, Kuppen',
+      seed: 21,
+      hazards: [{ s: 1050, kind: 'Bodenwelle (Sensor)' }, { s: 3420, kind: 'Schlagloch (gemeldet)' }],
+      base: s => 40 * Math.sin(s / 900) + s * 0.02,
+      bumps: [[420, 28, 3.8], [980, 12, 0.9], [1500, 30, -3], [2300, 26, 4.2], [3100, 12, 1.0], [3900, 35, 3], [4700, 25, -2.4]],
+      parts: [['S', 500], ['L', 200, 30], ['S', 100], ['R', 120, 55], ['L', 90, 60], ['S', 250], ['R', 30, 85],
+        ['S', 600], ['L', 18, 100], ['S', 120], ['R', 75, 50], ['S', 60], ['L', 60, 70, 35], ['S', 300], ['R', 250, 25],
+        ['S', 200], ['L', 45, 90], ['R', 45, 90], ['S', 400], ['L', 120, 60], ['S', 150], ['R', 50, 120, 18], ['S', 500]],
+    },
+    {
+      id: 'land', name: 'Landstraße durch die Hügel', sub: 'Demo · 6,2 km · gemischt',
+      seed: 99,
+      hazards: [{ s: 900, kind: 'Bodenwelle (Sensor)' }, { s: 2200, kind: 'Wildwechsel (gemeldet)' }],
+      base: s => 25 * Math.sin(s / 600) + 12 * Math.sin(s / 230),
+      bumps: [[700, 10, 0.8], [1300, 30, 3], [2100, 10, 0.9], [2900, 28, -3.2], [3800, 22, 3], [4600, 11, 0.8]],
+      parts: [['S', 700], ['R', 150, 40], ['S', 300], ['L', 80, 70], ['S', 400], ['R', 25, 90], ['S', 250], ['L', 300, 20],
+        ['S', 500], ['R', 60, 80, 30], ['S', 200], ['L', 100, 50], ['R', 100, 50], ['S', 600], ['L', 20, 140], ['S', 300], ['R', 200, 35], ['S', 600]],
+    },
+  ];
+
+  global.DemoRoutes = { list: ROUTES.map(r => ({ id: r.id, name: r.name, sub: r.sub })), get: id => build(ROUTES.find(r => r.id === id)), hazards: id => ROUTES.find(r => r.id === id).hazards };
+  if (typeof module !== 'undefined') module.exports = global.DemoRoutes;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const fmtKm = m => (m / 1000).toFixed(1).replace('.', ',');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const S = {
+  drive: 'normal', wet: false, sayV: true, limit: 100, overWarned: new Set(), reminded: new Set(),
+  routeId: 'pass', data: null, hazards: {}, mode: 'plan',
+  carS: 0, v: 0, mult: 2, style: 'rally', voice: true, view: 'both',
+  spoken: new Set(), vLimit: [], blobs: [], bounds: null, lastNoteId: -1, startTime: 0,
+};
+
+// ---------- Route laden + analysieren ----------
+function loadRoute(id) {
+  S.routeId = id;
+  analyzeRoute();
+  makeScenery();
+  S.mode = 'plan'; S.carS = 0; S.v = 0; S.spoken.clear(); S.lastNoteId = -1;
+  const meta = DemoRoutes.list.find(r => r.id === id);
+  const curves = S.data.notes.filter(n => n.type === 'curve');
+  const sub = `Demo-Strecke · ${fmtKm(S.data.length)} km · ${Math.round(estimateTime() / 60)} min`;
+  $('#pRouteName').textContent = meta.name; $('#pRouteSub').textContent = sub;
+  document.querySelector('[data-bind-aa="name"]').textContent = meta.name;
+  document.querySelector('[data-bind-aa="sub"]').textContent = sub;
+  renderStats();
+  $('#dest').value = meta.name + ' (Demo)';
+  renderBook();
+  setMode('plan');
+}
+function renderStats() {
+  const curves = S.data.notes.filter(n => n.type === 'curve');
+  const statHtml =
+    `<div><b>${curves.length}</b><small>Kurven</small></div>` +
+    `<div><b>${curves.filter(c => c.hairpin).length}</b><small>Haarnadeln</small></div>` +
+    `<div><b>${S.data.notes.filter(n => (n.type === 'vert' && /Kuppe/.test(n.kind)) || (n.mods && n.mods.some(m => /Kuppe/.test(m)))).length}</b><small>Kuppen</small></div>` +
+    `<div class="d"><b>${S.data.notes.filter(n => n.danger).length}</b><small>Gefahren</small></div>`;
+  $('#pStats').innerHTML = statHtml; $('#aStats').innerHTML = statHtml;
+}
+function analyzeRoute() {
+  const pts = DemoRoutes.get(S.routeId);
+  S.data = PaceEngine.analyze(pts, { hazards: hazardsFor(S.routeId) });
+  const P = S.data.points;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of P) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  S.bounds = { x0, y0, x1, y1 };
+  buildSpeedProfile();
+}
+function buildSpeedProfile() {
+  // Simulierter Fahrer fährt immer wie "Normal" (3,5 m/s²). Bei "Gemütlich" oder "Nass" ist er also zu schnell – so sieht man die Warnung.
+  const P = S.data.points, n = P.length, step = PaceEngine.CFG.step;
+  const v = new Array(n).fill(100 / 3.6);
+  for (const nt of S.data.notes) {
+    if (nt.type !== 'curve') continue;
+    const vc = PaceEngine.curveSpeed(nt.radius, 'normal', false, 100) / 3.6; // fährt genau die Empfehlung "Normal"
+    for (let i = Math.max(0, Math.floor((nt.s - 15) / step)); i <= Math.ceil(nt.sEnd / step) && i < n; i++) v[i] = Math.min(v[i], vc);
+  }
+  for (let i = n - 2; i >= 0; i--) v[i] = Math.min(v[i], Math.sqrt(v[i + 1] ** 2 + 2 * 2.6 * step));
+  for (let i = 1; i < n; i++) v[i] = Math.min(v[i], Math.sqrt(v[i - 1] ** 2 + 2 * 1.8 * step));
+  v[0] = 3;
+  S.vLimit = v;
+}
+function estimateTime() { const step = PaceEngine.CFG.step; return S.vLimit.reduce((t, v) => t + step / Math.max(v, 2), 0); }
+
+function makeScenery() {
+  let seed = 1234 + S.routeId.length * 77;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const P = S.data.points; const blobs = [];
+  for (let i = 0; i < 260; i++) {
+    const p = P[Math.floor(rnd() * P.length)];
+    const ang = rnd() * Math.PI * 2, d = 25 + rnd() * 380;
+    blobs.push({ x: p.x + Math.cos(ang) * d, y: p.y + Math.sin(ang) * d, r: 18 + rnd() * 70, t: rnd() < 0.72 ? 0 : 1 });
+  }
+  const roads = [];
+  for (let i = 0; i < 9; i++) {
+    const p = P[Math.floor(rnd() * P.length)]; const a = rnd() * Math.PI * 2; const pts = [];
+    let x = p.x, y = p.y, h = a;
+    for (let j = 0; j < 60; j++) { pts.push([x, y]); h += (rnd() - 0.5) * 0.35; x += Math.cos(h) * 20; y += Math.sin(h) * 20; }
+    roads.push(pts);
+  }
+  S.blobs = blobs; S.roads = roads;
+}
+
+// ---------- Position auf der Route ----------
+function posAt(s) {
+  const P = S.data.points, step = PaceEngine.CFG.step;
+  const f = clamp(s / step, 0, P.length - 1.001), i = Math.floor(f), t = f - i;
+  const a = P[i], b = P[Math.min(i + 1, P.length - 1)];
+  // Blickrichtung über 25 m geglättet
+  const j0 = Math.max(0, i - 2), j1 = Math.min(P.length - 1, i + 5);
+  const h = Math.atan2(P[j1].y - P[j0].y, P[j1].x - P[j0].x);
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, h };
+}
+
+// ---------- Karte zeichnen ----------
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  return { w, h, dpr };
+}
+function makeCam(W, H, dpr, isAA) {
+  if (S.mode === 'plan') {
+    const b = S.bounds, pad = 60 * dpr;
+    const top = isAA ? 0 : 120 * dpr, bottom = isAA ? 0 : 250 * dpr, left = isAA ? 330 * dpr : 0;
+    const sc = Math.min((W - left - pad * 2) / (b.x1 - b.x0), (H - top - bottom - pad * 2) / (b.y1 - b.y0));
+    return { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2, rot: 0, scale: sc, cx: left + (W - left) / 2, cy: top + (H - top - bottom) / 2, overview: true };
+  }
+  const p = posAt(S.carS);
+  const mpp = (isAA ? 0.62 : 0.72) + S.v * 0.012; // Zoom passt sich dem Tempo an
+  return { x: p.x, y: p.y, rot: -(Math.PI / 2 - p.h), scale: dpr / mpp, cx: isAA ? W * 0.58 : W / 2, cy: isAA ? H * 0.7 : H * 0.62, overview: false, car: p };
+}
+function toScreen(cam, x, y) {
+  const dx = (x - cam.x) * cam.scale, dy = -(y - cam.y) * cam.scale;
+  const c = Math.cos(cam.rot), s = Math.sin(cam.rot);
+  return [cam.cx + dx * c - dy * s, cam.cy + dx * s + dy * c];
+}
+function drawMap(cv, isAA) {
+  const { w: W, h: H, dpr } = setupCanvas(cv);
+  const ctx = cv.getContext('2d');
+  const cam = makeCam(W, H, dpr, isAA);
+  cv._cam = cam;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#040b1c'); bg.addColorStop(1, '#0a1c3c');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(cam.cx, cam.cy); ctx.rotate(cam.rot); ctx.scale(cam.scale, -cam.scale); ctx.translate(-cam.x, -cam.y);
+  // Gitter (wie eine Navi-Karte bei Nacht)
+  { const g = 100, x0 = Math.floor((S.bounds.x0 - 800) / g) * g, x1 = S.bounds.x1 + 800, y0 = Math.floor((S.bounds.y0 - 800) / g) * g, y1 = S.bounds.y1 + 800;
+    ctx.strokeStyle = 'rgba(63,140,220,.10)'; ctx.lineWidth = Math.max(1, 1 * dpr / cam.scale); ctx.beginPath();
+    for (let x = x0; x <= x1; x += g) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
+    for (let y = y0; y <= y1; y += g) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
+    ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(70,140,230,.28)'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(4, 2.2 * dpr / cam.scale);
+  for (const r of S.roads) { ctx.beginPath(); r.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }
+  // Route
+  const P = S.data.points;
+  const roadW = Math.max(8, (cam.overview ? 4.5 : 7) * dpr / cam.scale);
+  const path = (from, to) => { ctx.beginPath(); for (let i = from; i <= to; i++) i === from ? ctx.moveTo(P[i].x, P[i].y) : ctx.lineTo(P[i].x, P[i].y); };
+  const ci = Math.floor(S.carS / PaceEngine.CFG.step);
+  if (ci > 0) { path(0, Math.min(ci, P.length - 1)); ctx.strokeStyle = '#173a66'; ctx.lineWidth = roadW; ctx.stroke(); }
+  // Neon-Straße: breiter Schein, kräftige Linie, heller Kern
+  path(Math.min(ci, P.length - 2), P.length - 1);
+  ctx.save(); ctx.shadowColor = 'rgba(63,216,255,.9)'; ctx.shadowBlur = 18 * dpr;
+  ctx.strokeStyle = 'rgba(63,216,255,.35)'; ctx.lineWidth = roadW * 2.2; ctx.stroke(); ctx.restore();
+  ctx.strokeStyle = '#3fd8ff'; ctx.lineWidth = roadW; ctx.stroke();
+  ctx.strokeStyle = '#d9f7ff'; ctx.lineWidth = roadW * 0.32; ctx.stroke();
+  // Gefahrenabschnitte in Kurven einfärben
+  for (const nt of S.data.notes) {
+    if (nt.type !== 'curve' || !nt.danger || nt.sEnd < S.carS) continue;
+    const a = Math.max(ci, Math.floor(nt.s / 5)), b = Math.min(P.length - 1, Math.ceil(nt.sEnd / 5));
+    if (b <= a) continue;
+    path(a, b); ctx.strokeStyle = '#ff4f4f'; ctx.lineWidth = roadW * 0.55; ctx.stroke();
+  }
+  ctx.restore();
+  // Ziel-Flagge
+  const end = P[P.length - 1], [ex, ey] = toScreen(cam, end.x, end.y);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#0c1119'; ctx.beginPath(); ctx.arc(ex, ey, 4.5 * dpr, 0, Math.PI * 2); ctx.fill();
+  // Ansage-Marker
+  ctx.font = `700 ${12 * dpr}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const nt of S.data.notes) {
+    if ((nt.sEnd ?? nt.s) < S.carS - 5) continue;
+    if (cam.overview && nt.type === 'curve' && nt.grade > 3 && !nt.danger && !nt.hairpin) continue;
+    if (cam.overview && nt.type === 'vert' && !/Kuppe/.test(nt.kind)) continue;
+    if (!cam.overview && nt.s - S.carS > 500) continue;
+    const p = posAt(nt.type === 'curve' ? nt.sApex : nt.s);
+    const [sx, sy] = toScreen(cam, p.x, p.y);
+    if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
+    const label = shortLabel(nt);
+    const tw = ctx.measureText(label).width + 10 * dpr, th = 17 * dpr;
+    ctx.fillStyle = nt.danger ? '#ff5a4f' : '#0b1a36';
+    roundRect(ctx, sx - tw / 2, sy - th / 2, tw, th, 5 * dpr); ctx.fill();
+    if (!nt.danger) { ctx.strokeStyle = '#3fd8ff'; ctx.lineWidth = 1.5 * dpr; ctx.stroke(); }
+    ctx.fillStyle = nt.danger ? '#fff' : '#3fd8ff'; ctx.fillText(label, sx, sy + 1 * dpr);
+  }
+  // Stelle, die gerade eingetragen wird
+  if (!isAA && S.placing && placeS != null) {
+    const p = posAt(placeS), [px, py] = toScreen(cam, p.x, p.y);
+    ctx.fillStyle = 'rgba(255,79,79,.25)'; ctx.beginPath(); ctx.arc(px, py, 18 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff4f4f'; ctx.beginPath(); ctx.arc(px, py, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+  }
+  // Auto
+  if (cam.car) {
+    const [x, y] = toScreen(cam, cam.car.x, cam.car.y);
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(63,216,255,.18)'; ctx.beginPath(); ctx.arc(0, 0, 26 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = '#3fd8ff'; ctx.shadowBlur = 14 * dpr;
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#061026'; ctx.lineWidth = 3 * dpr;
+    ctx.beginPath(); ctx.moveTo(0, -15 * dpr); ctx.lineTo(11 * dpr, 12 * dpr); ctx.lineTo(0, 6 * dpr); ctx.lineTo(-11 * dpr, 12 * dpr); ctx.closePath();
+    ctx.fill(); ctx.stroke(); ctx.restore();
+  } else {
+    const st = P[0], [sx, sy] = toScreen(cam, st.x, st.y);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, sy, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0c1119'; ctx.beginPath(); ctx.arc(sx, sy, 4.5 * dpr, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function shortLabel(nt) {
+  if (nt.type === 'hazard') return '!';
+  if (nt.type === 'vert') return /Kuppe/.test(nt.kind) ? 'Kuppe' : nt.kind;
+  const d = nt.dir;
+  if (nt.hairpin) return d + ' HN';
+  if (nt.square) return d + ' Q';
+  return d + ' ' + nt.grade;
+}
+
+// ---------- Kurven-Symbol ----------
+function drawGlyph(cv, nt) {
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  const u = W / 100;
+  const col = nt && nt.danger ? '#ff5a4f' : '#3fd8ff';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (!nt) return;
+  if (nt.type !== 'curve') {
+    ctx.strokeStyle = nt.type === 'hazard' ? '#ff5a4f' : '#3fd8ff'; ctx.lineWidth = 9 * u;
+    if (nt.type === 'hazard') {
+      ctx.beginPath(); ctx.moveTo(50 * u, 16 * u); ctx.lineTo(88 * u, 82 * u); ctx.lineTo(12 * u, 82 * u); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#ff4f4f'; ctx.fillRect(46 * u, 40 * u, 8 * u, 22 * u); ctx.fillRect(46 * u, 67 * u, 8 * u, 7 * u);
+    } else {
+      const crest = nt.strength < 0;
+      ctx.beginPath(); ctx.moveTo(8 * u, 70 * u);
+      ctx.bezierCurveTo(35 * u, 70 * u, 35 * u, crest ? 25 * u : 92 * u, 50 * u, crest ? 25 * u : 92 * u);
+      ctx.bezierCurveTo(65 * u, crest ? 25 * u : 92 * u, 65 * u, 70 * u, 92 * u, 70 * u);
+      if (!crest) { ctx.moveTo(8 * u, 40 * u); ctx.lineTo(92 * u, 40 * u); }
+      ctx.stroke();
+    }
+    return;
+  }
+  // Kurve: Einfahrt von unten, Bogen je nach Winkel und Enge, Pfeilspitze
+  const dir = nt.dir === 'L' ? -1 : 1;
+  const ang = Math.min(nt.angle, 185) * Math.PI / 180;
+  const r0 = (nt.hairpin ? 13 : [0, 9, 14, 20, 27, 35, 46][nt.grade]) * u;
+  const tight = nt.mods.includes('zieht zu') ? 0.55 : nt.mods.includes('öffnet') ? 1.6 : 1;
+  let x = 50 * u - dir * (nt.hairpin ? 14 * u : 8 * u), y = 92 * u, h = -Math.PI / 2;
+  const pts = [[x, y]];
+  const entry = (nt.hairpin ? 26 : 22) * u; y -= entry; pts.push([x, y]);
+  const N = 40;
+  for (let i = 1; i <= N; i++) {
+    const r = r0 * (1 + (tight - 1) * (i / N));
+    const dh = ang / N; h += dir * dh; x += Math.cos(h) * r * dh; y += Math.sin(h) * r * dh; pts.push([x, y]);
+  }
+  const ex = 10 * u; x += Math.cos(h) * ex; y += Math.sin(h) * ex; pts.push([x, y]);
+  // in den Rahmen einpassen
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+  for (const [a, b] of pts) { minx = Math.min(minx, a); maxx = Math.max(maxx, a); miny = Math.min(miny, b); maxy = Math.max(maxy, b); }
+  const s = Math.min(1, 74 * u / Math.max(maxx - minx, maxy - miny));
+  const ox = 50 * u - (minx + maxx) / 2 * s, oy = 50 * u - (miny + maxy) / 2 * s;
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s);
+  ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 17 * u / s;
+  ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = 8 * u / s;
+  ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)); ctx.stroke();
+  const ah = 11 * u / s; ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(x + Math.cos(h) * ah, y + Math.sin(h) * ah);
+  ctx.lineTo(x + Math.cos(h + 2.3) * ah, y + Math.sin(h + 2.3) * ah);
+  ctx.lineTo(x + Math.cos(h - 2.3) * ah, y + Math.sin(h - 2.3) * ah); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // Zahl
+  const label = nt.hairpin ? 'HN' : nt.square ? 'Q' : String(nt.grade);
+  ctx.font = `800 ${30 * u}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lx = nt.dir === 'L' ? 80 * u : 20 * u, ly = 80 * u;
+  ctx.fillStyle = '#061026'; ctx.beginPath(); ctx.arc(lx, ly, 17 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = col; ctx.fillText(label, lx, ly + 1.5 * u);
+}
+
+// ---------- Texte ----------
+function cardInfo(nt) {
+  if (!nt) return { title: 'Ziel erreicht', chips: [] };
+  if (nt.type === 'hazard') return { title: nt.kind.replace(/\s*\(.*\)/, ''), chips: [/Sensor/.test(nt.kind) ? 'vom Sensor erkannt' : /Community/.test(nt.kind) ? 'aus der Cloud' : 'gemeldet'], red: true };
+  if (nt.type === 'vert') return { title: S.style === 'rally' ? nt.kind[0].toUpperCase() + nt.kind.slice(1) : (nt.kind === 'Kuppe' ? 'Kuppe' : nt.plain), chips: nt.kind === 'Kuppe' ? ['Sicht eingeschränkt'] : [] };
+  const side = nt.dir === 'L' ? 'Links' : 'Rechts';
+  let title;
+  if (S.style === 'rally') title = nt.hairpin ? `${side} Haarnadel` : nt.square ? `${side} Quadrat` : `${side} ${nt.grade}`;
+  else title = nt.plain.replace(/^Achtung, /, '').split(',')[0];
+  const chips = nt.mods.slice();
+  return { title, chips, reasons: nt.dangerReasons };
+}
+function speechText(nt) {
+  let t = (S.style === 'rally' ? nt.rally : nt.plain).replace(/\s*\([^)]*\)/g, '');
+  if (!SET.sayDist) t = t.replace(/, (\d+|lange Gerade)$/, '').replace(', danach lange Gerade', '');
+  return t;
+}
+function vmax(nt) { return nt && nt.type === 'curve' ? PaceEngine.curveSpeed(nt.radius, S.drive, S.wet, S.limit) : null; }
+
+// ---------- Sprachausgabe ----------
+let voiceDe = null, deVoices = [];
+// Ruhigere Tempi: zu schnell klingt die Stimme abgehackt
+const PRESETS = { profi: { rate: 1.12, pitch: 1 }, normal: { rate: 1.0, pitch: 1 }, ruhig: { rate: 0.9, pitch: 1 }, tief: { rate: 1.0, pitch: 0.8 } };
+S.preset = 'profi';
+function pickVoice() {
+  try {
+    deVoices = speechSynthesis.getVoices().filter(v => /^de([-_]|$)/i.test(v.lang));
+    const keep = voiceDe && deVoices.find(v => v.name === voiceDe.name);
+    // Natürlich klingende Stimmen zuerst (Edge "Natural", Apple "Premium/Enhanced", Google)
+    voiceDe = keep || deVoices.find(v => /Natural|Neural|Premium|Enhanced/i.test(v.name)) || deVoices.find(v => /Google|Anna|Katja|Hedda|Petra/i.test(v.name)) || deVoices[0] || null;
+  } catch (e) { deVoices = []; voiceDe = null; }
+  renderVoices();
+}
+try { speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
+// Satz flüssiger machen: Pausen per Komma statt harter Ausrufezeichen, Verbindungen mit kurzer Pause
+function smoothSpeech(t) {
+  return t.replace(/!\s*/g, ', ').replace(/ (in|und) (Links|Rechts)/g, ', $1 $2').replace(/\s+,/g, ',').replace(/,\s*$/, '.').replace(/,\s*\./g, '.');
+}
+// force: sofort sprechen (Anhören). Sonst wird angehängt statt abgeschnitten – kein Stottern mehr.
+function say(text, force) {
+  if (!S.voice && !force) return;
+  try {
+    if (force) speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(smoothSpeech(text));
+    u.lang = 'de-DE'; if (voiceDe) u.voice = voiceDe;
+    const pr = PRESETS[S.preset];
+    u.rate = S.style === 'plain' && !force ? Math.min(pr.rate, 1.0) : pr.rate; u.pitch = pr.pitch;
+    u.volume = SET.volume;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+const SAMPLES = [
+  { t: 'Links 4 in Rechts 2 zieht zu, 150', k: 'Rallye' },
+  { t: 'Vorsicht! Rechts Haarnadel nach Kuppe', k: 'Rallye', d: true },
+  { t: 'Kuppe, 100, Links 6 lang', k: 'Rallye' },
+  { t: 'Achtung, scharfe Linkskurve, zieht zu', k: 'Klartext', d: true },
+  { t: 'Leichte Rechtskurve, dann mittlere Linkskurve', k: 'Klartext' },
+  { t: 'Vorsicht! Rollsplitt', k: 'Gefahr', d: true },
+];
+function renderVoices() {
+  const sel = document.getElementById('voiceSel'); if (!sel) return;
+  if (!deVoices.length) {
+    sel.innerHTML = '<option>Standardstimme des Geräts</option>';
+    document.getElementById('voiceNote').textContent = 'Dein Browser meldet keine deutschen Stimmen. Am Android-Handy: Einstellungen › System › Sprache › Sprachausgabe › Google › Deutsch installieren.';
+  } else {
+    sel.innerHTML = deVoices.map((v, i) => `<option value="${i}"${voiceDe && v.name === voiceDe.name ? ' selected' : ''}>${v.name.replace(/[<>&]/g, '')} (${v.lang})</option>`).join('');
+    document.getElementById('voiceNote').textContent = `${deVoices.length} deutsche Stimme${deVoices.length === 1 ? '' : 'n'} gefunden. Die gewählte Stimme spricht auch die Ansagen der Fahrt oben.`;
+  }
+}
+document.getElementById('samples').innerHTML = SAMPLES.map((x, i) => `<button data-i="${i}" class="${x.d ? 'd' : ''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg><span>${x.t}</span><small>${x.k}</small></button>`).join('');
+document.getElementById('samples').addEventListener('click', e => { const b = e.target.closest('button'); if (b) say(SAMPLES[+b.dataset.i].t, true); });
+document.getElementById('voiceSel').addEventListener('change', e => { const v = deVoices[+e.target.value]; if (v) { voiceDe = v; say('Links 3 in Rechts Haarnadel', true); } });
+pickVoice();
+
+// ---------- Stimme wählen (wie in der Vorlage) ----------
+// Jede Person ist eine Google-KI-Stimme mit passender Sprechweise. Im Prototyp klingt die Vorschau nach der Gerätestimme.
+const PERSONAS = [
+  { name: 'Max', desc: 'Rallye-Beifahrer · schnell & knapp', voice: 'Charon', g: 'm', preset: 'profi' },
+  { name: 'Lena', desc: 'ruhig & gut verständlich', voice: 'Kore', g: 'w', preset: 'ruhig' },
+  { name: 'Jonas', desc: 'locker, wie ein Kumpel daneben', voice: 'Puck', g: 'm', preset: 'normal' },
+  { name: 'Sophie', desc: 'sportlich & energisch', voice: 'Aoede', g: 'w', preset: 'normal' },
+];
+const MORE_VOICES = [['Fenrir', 'm'], ['Achird', 'm'], ['Algenib', 'm'], ['Zephyr', 'w'], ['Achernar', 'w'], ['Leda', 'w'], ['Studio B', 'm'], ['Studio C', 'w']];
+const RATE_PRESET = { langsam: 'ruhig', normal: 'normal', schnell: 'profi' };
+let pickVoiceName = 'Max';
+const playIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>';
+function renderVoicePage() {
+  const wrap = $('#vPersonas'); wrap.textContent = '';
+  for (const p of PERSONAS) {
+    const row = document.createElement('div'); row.className = 'persona' + (pickVoiceName === p.name ? ' sel' : ''); row.dataset.name = p.name;
+    row.innerHTML = `<button class="play" aria-label="${p.name} anhören">${playIcon}</button><div><b>${p.name}</b><small>${p.desc}</small></div><span class="tick">${pickVoiceName === p.name ? '✓' : ''}</span>`;
+    wrap.append(row);
+  }
+  $('#vpList').innerHTML = MORE_VOICES.map(([n, g]) => `<div class="persona${pickVoiceName === n ? ' sel' : ''}" data-name="${n}" data-g="${g}"><button class="play" aria-label="${n} anhören">${playIcon}</button><div><b>${n}</b><small>Google KI · ${g === 'm' ? 'männlich' : 'weiblich'}</small></div><span class="tick">${pickVoiceName === n ? '✓' : ''}</span></div>`).join('');
+  $('#vTake').textContent = `Stimme ${pickVoiceName} übernehmen`;
+  setSeg('#vStyle', S.style); setSeg('#vRate', SET.rate);
+}
+function personaPreset(name) { const p = PERSONAS.find(x => x.name === name); return p ? p.preset : null; }
+function previewVoice(name, g) {
+  const keep = S.preset;
+  S.preset = personaPreset(name) || (g === 'm' ? 'tief' : 'normal');
+  if (SET.rate === 'langsam') S.preset = 'ruhig';
+  say(S.style === 'rally' ? 'Links 4 in Rechts 2 zieht zu, 150, Kuppe' : 'Achtung, scharfe Linkskurve, zieht zu', true);
+  S.preset = keep;
+}
+function onVoiceList(e) {
+  const row = e.target.closest('.persona'); if (!row || row.classList.contains('soon')) return;
+  const name = row.dataset.name;
+  if (e.target.closest('.play')) { previewVoice(name, row.dataset.g); return; }
+  pickVoiceName = name; renderVoicePage();
+}
+$('#vPersonas').addEventListener('click', onVoiceList);
+$('#vpList').addEventListener('click', onVoiceList);
+seg('#vStyle', v => setStyle(v));
+seg('#vRate', v => { SET.rate = v; saveSet(); });
+$('#btnVoices').addEventListener('click', () => { pickVoiceName = SET.voiceName; renderVoicePage(); $('#pVoices').hidden = false; });
+$('#vTake').addEventListener('click', () => {
+  SET.voiceName = pickVoiceName; S.preset = personaPreset(pickVoiceName) || RATE_PRESET[SET.rate];
+  if (SET.rate !== 'normal') S.preset = RATE_PRESET[SET.rate];
+  saveSet(); $('#voiceLabel').textContent = pickVoiceName; $('#pVoices').hidden = true;
+  toast(`${pickVoiceName} sagt ab jetzt an. Die Ansagen werden beim Start einmal erzeugt und gespeichert.`);
+});
+
+// ---------- Einstellungen ----------
+const SET_DEFAULT = { leadSec: 5.5, remind: true, warn: {}, vmaxShow: 'aa', sayDist: true, sayV: false,
+  style: 'rally', drive: 'normal', wet: false, limit: 100, overTol: 5, rate: 'normal', volume: 1, duck: true, voice: true,
+  voiceName: 'Max', vis: 'all', group: '', sensor: true, tilt: true };
+const SET = (() => { try { return { ...SET_DEFAULT, ...JSON.parse(localStorage.getItem('beifahrer.settings') || '{}') }; } catch (e) { return { ...SET_DEFAULT }; } })();
+SET.sayV = false; // Tempo wird nie gesprochen, nur angezeigt
+if (!SET.warn || typeof SET.warn !== 'object') SET.warn = {};
+function warnOn(k) { return SET.warn[k] !== false; }
+// Wovor gewarnt werden kann – jede Kategorie einzeln an/aus
+function warnGroups() {
+  return [
+    ['Kurven', [['haarnadel', 'Haarnadeln'], ['eng', 'Enge Kurven 1–2'], ['mittel', 'Mittlere 3–4'], ['schnell', 'Schnelle 5–6'], ['ziehtzu', 'Zieht zu']]],
+    ['Straße', [['kuppe', 'Kuppen'], ['senke', 'Senken & Mulden']]],
+    ['Gefahren von anderen Fahrern', KINDS.map(k => [k, k])],
+  ];
+}
+function saveSet() { try { localStorage.setItem('beifahrer.settings', JSON.stringify(SET)); } catch (e) {} }
+// Zeilen der Einstellungsseite: [Schlüssel, Titel, Hilfe, Optionen [Wert, Text]]
+const SET_UI = [
+  ['Warnung', [
+    ['leadSec', 'Wie früh ansagen?', () => `Bei 80 km/h etwa ${Math.round(80 / 3.6 * SET.leadSec)} m vor der Kurve`, [[8, 'Sehr früh'], [6.5, 'Früh'], [5.5, 'Normal'], [4, 'Spät']]],
+    ['remind', 'Kurz davor nochmal erinnern', 'Bei engen und gefährlichen Kurven: „Rechts 3!“ etwa 2 Sekunden vorher', [[true, 'An'], [false, 'Aus']]],
+  ]],
+  ['Warnen vor', []],
+  ['Ansage', [
+    ['sayDist', 'Abstände („150“)', 'Meter bis zur nächsten Ansage', [[true, 'An'], [false, 'Aus']]],
+    ['style', 'Ansage-Stil', '„Rechts 3“ oder „Mittlere Rechtskurve“', [['rally', 'Rallye-kurz'], ['plain', 'Normal erklärt']]],
+  ]],
+  ['Kurventempo (nur Anzeige)', [
+    ['vmaxShow', 'Höchsttempo anzeigen', 'Wird nie angesagt, nur angezeigt', [['aa', 'Nur Android Auto'], ['both', 'Handy + Auto'], ['off', 'Aus']]],
+    ['overTol', 'Rot anzeigen, wenn zu schnell', 'Wenn normales Bremsen bis zur Kurve nicht mehr reicht', [[0, 'Aus'], [5, '+5'], [10, '+10'], [15, '+15 km/h']]],
+    ['drive', 'Fahrstil', 'Wie flott die Tempo-Empfehlung ist', [['gemuetlich', 'Gemütlich'], ['normal', 'Normal'], ['sportlich', 'Sportlich']]],
+    ['wet', 'Straße', 'Bei Nässe empfiehlt die App etwa ein Viertel weniger', [[false, 'Trocken'], [true, 'Nass']]],
+    ['limit', 'Tempolimit', 'Die Empfehlung geht nie darüber', [[80, '80'], [100, '100'], [130, '130']]],
+  ]],
+  ['Stimme', [
+    ['voice', 'Sprachausgabe', '', [[true, 'An'], [false, 'Aus']]],
+    ['rate', 'Sprechtempo', '', [['langsam', 'Langsam'], ['normal', 'Normal'], ['schnell', 'Schnell']]],
+    ['volume', 'Lautstärke', '', [[0.5, 'Leise'], [0.8, 'Mittel'], [1, 'Laut']]],
+    ['duck', 'Musik leiser bei Ansagen', 'Nur in der App', [[true, 'An'], [false, 'Aus']]],
+  ]],
+  ['Cloud & Gruppe', [
+    ['vis', 'Neue Meldungen sichtbar für', '', [['all', 'Alle Fahrer'], ['group', 'Meine Gruppe']]],
+    ['sensor', 'Bodenwellen automatisch erkennen', 'Über den Beschleunigungssensor, nur in der App', [[true, 'An'], [false, 'Aus']]],
+  ]],
+  ['Anzeige', [
+    ['tilt', 'Karte während der Fahrt', '', [[true, '3D'], [false, '2D']]],
+  ]],
+];
+function renderSettings() {
+  const body = $('#setBody'); body.textContent = '';
+  for (const [title, rows] of SET_UI) {
+    const sec = document.createElement('div'); sec.className = 'setsec';
+    const h = document.createElement('h4'); h.textContent = title; sec.append(h);
+    if (title === 'Warnen vor') {
+      const help = document.createElement('small'); help.className = 'warnhelp'; help.textContent = 'Tippe an, wovor die Stimme warnen soll. Rot markierte, gefährliche Kurven werden immer angesagt.'; sec.append(help);
+      for (const [gt, items] of warnGroups()) {
+        const row = document.createElement('div'); row.className = 'setrow';
+        const sp = document.createElement('span'); sp.textContent = gt; row.append(sp);
+        const box = document.createElement('div'); box.className = 'chips2';
+        for (const [k, t] of items) { const b = document.createElement('button'); b.textContent = t; b.dataset.warn = k; b.setAttribute('aria-pressed', String(warnOn(k))); box.append(b); }
+        row.append(box); sec.append(row);
+      }
+    }
+    for (const [key, label, help, opts] of rows) {
+      const row = document.createElement('div'); row.className = 'setrow';
+      const sp = document.createElement('span'); sp.textContent = label; row.append(sp);
+      const helpText = typeof help === 'function' ? help() : help;
+      if (helpText) { const sm = document.createElement('small'); sm.textContent = helpText; row.append(sm); }
+      const sg = document.createElement('div'); sg.className = 'seg';
+      opts.forEach(([v, t], i) => { const b = document.createElement('button'); b.textContent = t; b.dataset.key = key; b.dataset.i = i; b.setAttribute('aria-pressed', String(SET[key] === v)); sg.append(b); });
+      row.append(sg); sec.append(row);
+    }
+    if (title === 'Cloud & Gruppe') {
+      const row = document.createElement('div'); row.className = 'setrow';
+      row.innerHTML = '<span>Gruppen-Code</span><small>Alle mit demselben Code sehen eure Gruppen-Meldungen</small>';
+      const inp = document.createElement('input'); inp.id = 'setGroup'; inp.maxLength = 24; inp.placeholder = 'z. B. RALLYE-CREW'; inp.value = SET.group;
+      inp.addEventListener('change', () => { SET.group = inp.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, ''); inp.value = SET.group; saveSet(); refreshHazards(); });
+      row.append(inp); sec.append(row);
+    }
+    body.append(sec);
+  }
+}
+$('#setBody').addEventListener('click', e => {
+  const w = e.target.closest('button[data-warn]');
+  if (w) { SET.warn = { ...SET.warn, [w.dataset.warn]: !warnOn(w.dataset.warn) }; saveSet(); S.lastNoteId = -1; renderBook(); renderSettings(); return; }
+  const b = e.target.closest('button[data-key]'); if (!b) return;
+  const key = b.dataset.key, row = SET_UI.flatMap(x => x[1]).find(r => r[0] === key);
+  applySetting(key, row[3][+b.dataset.i][0]);
+  renderSettings();
+});
+function applySetting(key, v) {
+  SET[key] = v; saveSet();
+  if (key === 'style') setStyle(v);
+  if (key === 'voice') setVoice(v);
+  if (key === 'drive') S.drive = v;
+  if (key === 'wet') S.wet = v;
+  if (key === 'limit') S.limit = v;
+  if (key === 'sayV') S.sayV = v;
+  if (key === 'rate') S.preset = RATE_PRESET[v];
+  if (key === 'tilt') { $('#phone').classList.toggle('tilt', S.mode !== 'plan' && v); $('#aa').classList.toggle('tilt', S.mode !== 'plan' && v); }
+  if (['drive', 'wet', 'limit'].includes(key)) { S.overWarned.clear(); renderBook(); renderScale(); }
+  if (['maxGrade', 'crests', 'hazards'].includes(key)) { S.lastNoteId = -1; renderBook(); }
+  if (key === 'rate' || key === 'volume') say('Rechts 3 zieht zu, 150', true);
+}
+function openSettings() { renderSettings(); $('#pSettings').hidden = false; }
+$('#btnSettings').addEventListener('click', openSettings);
+$('#btnSettings2').addEventListener('click', openSettings);
+// gespeicherte Einstellungen übernehmen
+S.drive = SET.drive; S.wet = SET.wet; S.limit = SET.limit; S.sayV = SET.sayV; S.style = SET.style; S.voice = SET.voice;
+S.preset = personaPreset(SET.voiceName) || 'profi'; if (SET.rate !== 'normal') S.preset = RATE_PRESET[SET.rate];
+
+// ---------- Ablauf ----------
+let raf = 0, lastT = 0;
+function setMode(m) {
+  S.mode = m;
+  ['#pVoices', '#pSettings', '#pHazard'].forEach(id => { const el = $(id); if (el) el.hidden = true; });
+  if (S.placing) { S.placing = false; placeS = null; $('#placeHint').hidden = true; }
+  $('#phone').classList.toggle('tilt', m !== 'plan' && SET.tilt);
+  $('#aa').classList.toggle('tilt', m !== 'plan' && SET.tilt);
+  $('#btnPlace').hidden = m !== 'plan';
+  const drive = m !== 'plan';
+  $('#pPlanTop').hidden = drive; $('#pPlanBottom').hidden = drive; $('#aPlan').hidden = drive;
+  $('#pDriveTop').hidden = !drive; $('#pDriveBottom').hidden = !drive;
+  ['#aDrive', '#aStrip', '#aEst', '#aSpeed'].forEach(s => { $(s).hidden = !drive; });
+  $('#pop').classList.remove('open');
+  if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(loop); }
+}
+function start() {
+  S.carS = 0; S.v = 3; S.spoken.clear(); S.reminded.clear(); S.overWarned.clear(); S.lastNoteId = -1; S.startTime = Date.now();
+  setMode('drive');
+  say(S.style === 'rally' ? 'Los geht\'s. Gebetbuch geladen.' : 'Route geladen. Ich sage die Kurven an.');
+}
+function stop() { try { speechSynthesis.cancel(); } catch (e) {} S.carS = 0; S.v = 0; setMode('plan'); }
+function jumpTo(s) {
+  if (S.mode === 'plan') { S.startTime = Date.now(); setMode('drive'); }
+  S.carS = Math.max(0, s); S.v = S.vLimit[Math.floor(S.carS / 5)] || 10;
+  S.spoken = new Set(S.data.notes.filter(n => n.s < S.carS + leadDist()).map(n => n.id));
+  S.lastNoteId = -1;
+}
+function logSpoken(text, nt) {
+  const ol = $('#log'); const e = ol.querySelector('.empty'); if (e) e.remove();
+  const li = document.createElement('li'); if (nt.danger) li.className = 'd';
+  li.innerHTML = `<time>km ${fmtKm(S.carS)}</time><span></span>`; li.querySelector('span').textContent = text;
+  ol.prepend(li); while (ol.children.length > 6) ol.lastChild.remove();
+}
+function leadDist() { return clamp(S.v * SET.leadSec, 50, 280); }
+// Welche Ansagen will der Fahrer? (Einstellungen)
+function wanted(nt) {
+  if (!nt) return false;
+  if (nt.type === 'curve') {
+    if (nt.danger) return true;                     // gefährliche Kurven immer
+    if (nt.hairpin) return warnOn('haarnadel');
+    if (warnOn('ziehtzu') && nt.mods.includes('zieht zu')) return true;
+    const g = nt.square ? 2 : nt.grade;
+    return warnOn(g <= 2 ? 'eng' : g <= 4 ? 'mittel' : 'schnell');
+  }
+  if (nt.type === 'vert') return warnOn(/Kuppe/.test(nt.kind) ? 'kuppe' : 'senke');
+  let base = nt.kind.replace(/\s*\(.*\)/, ''); base = LEGACY[base] || base;
+  return warnOn(base);
+}
+
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  if (S.mode === 'drive') {
+    for (let k = 0; k < S.mult * 2; k++) {
+      const sub = dt / 2;
+      const target = S.vLimit[Math.min(S.vLimit.length - 1, Math.floor(S.carS / 5))];
+      S.v += clamp(target - S.v, -3 * sub, 2 * sub);
+      S.carS += S.v * sub;
+    }
+    if (S.carS >= S.data.length - 2) { S.carS = S.data.length - 1; S.mode = 'done'; say('Ziel erreicht.'); }
+    checkAnnouncements();
+    checkOverspeed();
+  }
+  drawMap($('#phoneMap'), false);
+  drawMap($('#aaMap'), true);
+  updateHud();
+  raf = requestAnimationFrame(loop);
+}
+// Zu schnell für die nächste Kurve? (bis 150 m davor und in der Kurve)
+function checkOverspeed() {
+  const nt = S.data.notes.find(n => n.type === 'curve' && n.sEnd > S.carS && n.s - S.carS < 200);
+  const v = vmax(nt), kmh = S.v * 3.6;
+  // Vor der Kurve: nur warnen, wenn normales Bremsen (3 m/s²) nicht mehr reicht. In der Kurve: direkt vergleichen.
+  let allowed = v;
+  if (nt && v != null && nt.s > S.carS) allowed = Math.sqrt((v / 3.6) ** 2 + 2 * 3 * (nt.s - S.carS)) * 3.6;
+  S.over = !!(SET.overTol > 0 && nt && v != null && kmh > allowed + SET.overTol);
+  // Nur Anzeige (rot), keine Ansage
+}
+function checkAnnouncements() {
+  const lead = leadDist();
+  const notes = S.data.notes;
+  for (let i = 0; i < notes.length; i++) {
+    const nt = notes[i];
+    if (S.spoken.has(nt.id)) continue;
+    if (nt.s - S.carS > lead) break;
+    if ((nt.sEnd ?? nt.s) < S.carS) { S.spoken.add(nt.id); continue; }
+    if (!wanted(nt)) { S.spoken.add(nt.id); continue; }
+    // verkettete Kurven ("in"/"und") in einem Satz ansagen
+    let text = speechText(nt); S.spoken.add(nt.id);
+    let j = i;
+    let vmin = vmax(nt);
+    while (notes[j].link && notes[j + 1]) { j++; S.spoken.add(notes[j].id); text += ' ' + speechText(notes[j]); const v2 = vmax(notes[j]); if (v2 != null) vmin = vmin == null ? v2 : Math.min(vmin, v2); }
+    // Empfohlenes Tempo: nur wenn es unter dem Tempolimit liegt (sonst nichts zu sagen)
+    say(text); logSpoken(text, nt);
+    $$('[data-pn]').forEach(el => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); });
+    return;
+  }
+  // Zweite, kurze Ansage kurz vor engen oder gefährlichen Kurven ("Rechts 3!")
+  if (!SET.remind) return;
+  const near = Math.max(35, S.v * 2);
+  for (const nt of notes) {
+    if (nt.s - S.carS > near) break;
+    if (nt.type !== 'curve' || S.reminded.has(nt.id) || !S.spoken.has(nt.id) || nt.s < S.carS) continue;
+    S.reminded.add(nt.id);
+    if (!(nt.danger || nt.hairpin || nt.grade <= 3) || !wanted(nt)) continue;
+    let busy = false; try { busy = speechSynthesis.speaking; } catch (e) {}
+    if (busy) continue;
+    const t = cardInfo(nt).title + '!';
+    say(t); logSpoken(t, nt);
+    return;
+  }
+}
+
+// ---------- HUD ----------
+const hudCache = new Map();
+function bind(name, val, prop = 'textContent') {
+  const key = name + prop;
+  if (hudCache.get(key) === val) return;
+  hudCache.set(key, val);
+  document.querySelectorAll(`[data-bind="${name}"]`).forEach(el => { if (prop === 'width') el.style.width = val; else el[prop] = val; });
+}
+function currentNote() {
+  return S.data.notes.find(n => (n.type === 'curve' ? n.sEnd : n.s + 5) > S.carS && wanted(n)) || null;
+}
+function updateHud() {
+  const now = new Date();
+  const clk = now.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+  $$('.clk').forEach(el => { if (el.textContent !== clk) el.textContent = clk; });
+  if (S.mode === 'plan') return;
+  const nt = S.mode === 'done' ? null : currentNote();
+  const info = cardInfo(nt);
+  if ((nt ? nt.id : -2) !== S.lastNoteId || hudCache.get('style') !== S.style) {
+    S.lastNoteId = nt ? nt.id : -2; hudCache.set('style', S.style);
+    $$('[data-pn]').forEach(el => { el.classList.toggle('danger', !!(nt && nt.danger)); drawGlyph(el.querySelector('.glyph'), nt); });
+    $$('[data-bind="title"]').forEach(el => { el.textContent = info.title; el.classList.toggle('long', info.title.length > 13); });
+    const reasons = (info.reasons || []).filter(r => !info.chips.includes(r));
+    bind('chips', info.chips.map(c => `<span>${c}</span>`).join('') + reasons.map(r => `<span class="red">${r}</span>`).join(''), 'innerHTML');
+    bind('warn', nt && nt.danger ? 'Vorsicht' : '');
+    // Danach
+    const idx = nt ? S.data.notes.indexOf(nt) : -1;
+    const nx = idx >= 0 ? S.data.notes.slice(idx + 1, idx + 3) : [];
+    let nextHtml = '';
+    if (nt) {
+      const lk = nt.link ? (nt.link === 'in' ? 'direkt in' : 'und dann') : nt.dist ? (nt.dist >= 500 ? 'lange Gerade, dann' : `${nt.dist} m, dann`) : 'dann';
+      nextHtml = `<span>${lk}</span>` + nx.map(n => `<b>${cardInfo(n).title}</b>`).join('<span>·</span>');
+    }
+    bind('next', nextHtml, 'innerHTML');
+  }
+  if (nt) {
+    const d = nt.s - S.carS;
+    if (d > 0) { bind('dist', String(Math.round(d / 10) * 10)); bind('distUnit', 'm'); }
+    else { bind('dist', 'jetzt'); bind('distUnit', ''); }
+    $$('[data-bind="dist"]').forEach(el => el.classList.toggle('now', d <= 0));
+    bind('bar', `${clamp(100 - (d / 250) * 100, 0, 100)}%`, 'width');
+  } else { bind('dist', ''); bind('distUnit', ''); bind('bar', '100%', 'width'); $$('[data-bind="dist"]').forEach(el => el.classList.remove('now')); }
+  const remain = Math.max(0, S.data.length - S.carS);
+  bind('navDist', fmtKm(remain) + ' km');
+  bind('navText', S.mode === 'done' ? 'Ziel erreicht' : 'Der Straße folgen, dann Ziel');
+  bind('speed', String(Math.round(S.v * 3.6)));
+  const v = vmax(nt);
+  const vtxt = v != null && v < S.limit ? `max ${v}` : '';
+  bind('vmaxAA', SET.vmaxShow !== 'off' ? vtxt : '');
+  bind('vmaxPhone', SET.vmaxShow === 'both' ? vtxt : '');
+  const overAA = !!S.over && SET.vmaxShow !== 'off', overPhone = !!S.over && SET.vmaxShow === 'both';
+  $$('#aa [data-pn]').forEach(el => el.classList.toggle('over', overAA));
+  $$('#phone [data-pn]').forEach(el => el.classList.toggle('over', overPhone));
+  $$('#aa .speed').forEach(el => el.classList.toggle('over', overAA));
+  $$('#phone .speed').forEach(el => el.classList.toggle('over', overPhone));
+  let secLeft = 0; for (let i = Math.floor(S.carS / 5); i < S.vLimit.length; i++) secLeft += 5 / Math.max(S.vLimit[i], 2);
+  const eta = new Date(Date.now() + secLeft * 1000).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+  bind('eta', eta);
+  bind('remain', `${fmtKm(remain)} km · ${Math.max(1, Math.round(secLeft / 60))} min`);
+  // Vorschau-Band
+  const span = 600; let tape = '', lastPct = -99;
+  for (const n of S.data.notes) {
+    const d = n.s - S.carS; if (d < -5) continue; if (d > span) break;
+    const pct = Math.max(0, d) / span * 90 + 6;
+    if (pct - lastPct < 11 && !n.danger) continue; // nicht überlappen
+    lastPct = pct;
+    tape += `<span class="mk ${n.danger ? 'd' : n.type !== 'curve' ? 'v' : ''}" style="left:${pct.toFixed(1)}%">${shortLabel(n)}</span>`;
+  }
+  bind('tape', tape, 'innerHTML');
+  // Gebetbuch-Zeilen markieren
+  $$('#book tr').forEach(tr => {
+    const n = S.data.notes[+tr.dataset.i]; const end = n.sEnd ?? n.s;
+    tr.classList.toggle('past', end < S.carS); tr.classList.toggle('now', nt === n);
+  });
+}
+
+// ---------- Gebetbuch + Skala ----------
+function renderBook() {
+  $('#book').innerHTML = S.data.notes.map((n, i) => {
+    const typ = n.type === 'curve' ? 'Kurve' : n.type === 'vert' ? 'Höhe' : 'Gemeldet';
+    const cls = n.danger ? 'd' : n.type !== 'curve' ? 'v' : '';
+    return `<tr data-i="${i}"${wanted(n) ? '' : ' style="opacity:.4" title="In den Einstellungen ausgeblendet"'}><td class="num">${fmtKm(n.s).replace(/^(\d+),(\d)$/, '$1,$2')}</td><td><span class="tag ${cls}">${shortLabel(n)}</span> ${typ}</td><td>${n.rally}</td><td>${n.plain}</td><td class="num">${n.radius ? n.radius + ' m' : '–'}</td><td class="num">${n.angle ? n.angle + '°' : '–'}</td><td class="num">${vmax(n) != null ? vmax(n) : '–'}</td></tr>`;
+  }).join('');
+}
+$('#book').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; const n = S.data.notes[+tr.dataset.i]; jumpTo(n.s - 220); $('#stage').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); });
+function renderScale() {
+  const rows = [
+    { g: 1, r: '< 20 m', t: 'Sehr scharf' }, { g: 2, r: '20–35 m', t: 'Scharf' }, { g: 3, r: '35–55 m', t: 'Mittel' },
+    { g: 4, r: '55–85 m', t: 'Zügig' }, { g: 5, r: '85–130 m', t: 'Leicht' }, { g: 6, r: '130–350 m', t: 'Sehr leicht' },
+    { g: 'HN', r: '≥ 135°, ≤ 30 m', t: 'Haarnadel' },
+  ];
+  const top = [20, 35, 55, 85, 130, 350, 30];
+  $('#scale').innerHTML = rows.map((r, i) => `<div class="row"><canvas width="92" height="92" data-i="${i}"></canvas><b>${typeof r.g === 'number' ? 'R ' + r.g : 'R HN'}</b><span>${r.t}</span><small>${r.r}<br>bis ${PaceEngine.curveSpeed(top[i], S.drive, S.wet, S.limit)} km/h</small></div>`).join('');
+  $$('#scale canvas').forEach(cv => {
+    const r = rows[+cv.dataset.i];
+    drawGlyph(cv, { type: 'curve', dir: 'R', grade: typeof r.g === 'number' ? r.g : 1, hairpin: r.g === 'HN', square: false, angle: r.g === 'HN' ? 180 : 90 - (typeof r.g === 'number' ? (r.g - 1) * 8 : 0), mods: [], danger: false });
+  });
+}
+
+// ---------- Eingaben ----------
+const dest = $('#dest'), sugg = $('#sugg');
+function showSugg() {
+  const q = dest.value.trim().toLowerCase().replace(' (demo)', '');
+  const list = DemoRoutes.list.filter(r => !q || r.name.toLowerCase().includes(q) || q.length < 2);
+  let html = (list.length ? list : DemoRoutes.list).map(r => {
+    return `<button data-id="${r.id}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg><span>${r.name}<small>Demo-Strecke</small></span></button>`;
+  }).join('');
+  if (q.length >= 2 && !list.length) html = `<div class="hint">Im Prototyp gibt es nur Demo-Strecken. In der App sucht hier Google Places nach „${dest.value.replace(/[<>&]/g, '')}“.</div>` + html;
+  else html += `<div class="hint">In der App: echte Adresssuche über Google Places.</div>`;
+  sugg.innerHTML = html; sugg.classList.add('open');
+}
+dest.addEventListener('focus', () => { dest.select(); showSugg(); });
+dest.addEventListener('input', showSugg);
+dest.addEventListener('keydown', e => { if (e.key === 'Escape') { sugg.classList.remove('open'); dest.blur(); } if (e.key === 'Enter') { const b = sugg.querySelector('button'); if (b) b.click(); } });
+sugg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; sugg.classList.remove('open'); dest.blur(); loadRoute(b.dataset.id); });
+document.addEventListener('click', e => { if (!e.target.closest('#pPlanTop')) sugg.classList.remove('open'); if (!e.target.closest('#pop') && !e.target.closest('#btnHazard')) $('#pop').classList.remove('open'); });
+
+$('#btnStart').addEventListener('click', start);
+$('#btnStartAA').addEventListener('click', start);
+$('#btnStop').addEventListener('click', stop);
+$('#btnHazard').addEventListener('click', () => openHazardPage(Math.max(0, S.carS - 5)));
+// Android Auto: ein Tipp meldet sofort eine Bodenwelle (Auswahl-Seiten sind im Auto während der Fahrt nicht erlaubt)
+$('#aaHazard').addEventListener('click', () => addHazard(Math.max(0, S.carS - 5), 'Bodenwelle', ''));
+
+// ---------- Cloud: gemeinsame Gefahrenstellen ----------
+// Jede Person schreibt ihre Einträge in ihr eigenes Dokument hazards/<id>, Bestätigungen in votes/<id>.
+// Alle lesen alles live mit. Ohne Cloud (z. B. Datei lokal geöffnet) bleibt alles in diesem Fenster.
+const KINDS = ['Bodenwelle', 'Schlagloch', 'Rollsplitt', 'Nässe / Eis', 'Wildwechsel', 'Kuppe uneinsehbar', 'Steilkurve', 'Baustelle', 'Sonstiges'];
+const LEGACY = { 'Glätte': 'Nässe / Eis' };
+const CLOUD = { db: null, user: null, me: null, docs: {}, votes: {}, names: {}, status: 'connecting', local: [], localVotes: {}, writing: Promise.resolve() };
+function cleanItem(it, uid) {
+  if (it && LEGACY[it.kind]) it = { ...it, kind: LEGACY[it.kind] };
+  if (!it || typeof it !== 'object' || !KINDS.includes(it.kind) || !DemoRoutes.list.some(r => r.id === it.route)) return null;
+  const s = Number(it.s); if (!isFinite(s) || s < 0 || s > 20000) return null;
+  return { id: String(it.id).slice(0, 40), route: it.route, s, kind: it.kind, note: typeof it.note === 'string' ? it.note.slice(0, 80) : '', at: Number(it.at) || 0, vis: it.vis === 'group' ? 'group' : 'all', group: typeof it.group === 'string' ? it.group.slice(0, 24) : '', by: uid, key: uid + '_' + String(it.id).slice(0, 40) };
+}
+function visibleToMe(h) { return h.vis !== 'group' || (SET.group && h.group === SET.group); }
+function allCloudHazards() {
+  const out = [];
+  for (const [uid, d] of Object.entries(CLOUD.docs)) for (const it of (Array.isArray(d.items) ? d.items : [])) { const c = cleanItem(it, uid); if (c) out.push(c); }
+  for (const it of CLOUD.local) out.push({ ...it, by: 'local', key: 'local_' + it.id });
+  return out.filter(visibleToMe).sort((a, b) => a.route === b.route ? a.s - b.s : a.route < b.route ? -1 : 1);
+}
+function allVotes() { const v = { ...CLOUD.votes }; if (!CLOUD.db) v.local = { v: CLOUD.localVotes }; return v; }
+function tally(key) {
+  let da = 0, weg = 0, mine = 0;
+  for (const [uid, d] of Object.entries(allVotes())) {
+    const x = d && d.v ? d.v[key] : 0;
+    if (x === 1) da++; else if (x === -1) weg++;
+    if (uid === (CLOUD.me || 'local')) mine = x || 0;
+  }
+  return { da, weg, mine };
+}
+function isGone(h) { const t = tally(h.key); return t.weg >= t.da + 2 || (t.weg >= 1 && t.da === 0 && h.by === (CLOUD.me || 'local')); }
+function hazardsFor(routeId) {
+  return DemoRoutes.hazards(routeId).concat(
+    allCloudHazards().filter(h => h.route === routeId && !isGone(h)).map(h => ({ s: h.s, kind: h.kind + ' (Community)' })));
+}
+function refreshHazards() {
+  if (!S.data) return;
+  const spokenBefore = new Set(S.data.notes.filter(n => S.spoken.has(n.id)).map(n => Math.round(n.s)));
+  analyzeRoute();
+  S.spoken = new Set(S.data.notes.filter(n => spokenBefore.has(Math.round(n.s)) || (S.mode !== 'plan' && n.s <= S.carS + 2)).map(n => n.id));
+  S.lastNoteId = -1; renderBook(); renderStats(); renderComm();
+}
+function queueWrite(fn) { CLOUD.writing = CLOUD.writing.then(fn).catch(e => { console.warn(e); toast('Speichern in der Cloud fehlgeschlagen. Bitte nochmal versuchen.'); }); return CLOUD.writing; }
+function addHazard(s, kind, note, vis) {
+  vis = vis || SET.vis;
+  if (vis === 'group' && !SET.group) { toast('Für „Meine Gruppe“ zuerst in den Einstellungen einen Gruppen-Code eintragen.'); return false; }
+  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), route: S.routeId, s: Math.round(s), kind, note: (note || '').slice(0, 80), at: Date.now(), vis, group: vis === 'group' ? SET.group : '' };
+  if (CLOUD.db && CLOUD.me) {
+    const mine = (CLOUD.docs[CLOUD.me] && Array.isArray(CLOUD.docs[CLOUD.me].items) ? CLOUD.docs[CLOUD.me].items : []).concat([item]);
+    CLOUD.docs = { ...CLOUD.docs, [CLOUD.me]: { items: mine } };
+    queueWrite(() => CLOUD.db.doc('hazards/' + CLOUD.me).set({ items: mine }));
+    toast(`${kind} bei km ${fmtKm(item.s)} gespeichert. ${vis === 'group' ? 'Deine Gruppe' : 'Alle Fahrer'} sehen die Stelle jetzt.`);
+  } else {
+    CLOUD.local.push(item);
+    toast(`${kind} bei km ${fmtKm(item.s)} gespeichert (nur in diesem Fenster, keine Cloud).`);
+  }
+  refreshHazards();
+  return true;
+}
+function vote(key, val) {
+  if (CLOUD.db && CLOUD.me) {
+    const v = { ...((CLOUD.votes[CLOUD.me] || {}).v || {}) };
+    v[key] = v[key] === val ? 0 : val;
+    CLOUD.votes = { ...CLOUD.votes, [CLOUD.me]: { v } };
+    queueWrite(() => CLOUD.db.doc('votes/' + CLOUD.me).set({ v }));
+  } else CLOUD.localVotes[key] = CLOUD.localVotes[key] === val ? 0 : val;
+  refreshHazards();
+}
+function removeMine(h) {
+  if (h.by === 'local') { CLOUD.local = CLOUD.local.filter(x => 'local_' + x.id !== h.key); refreshHazards(); return; }
+  if (!CLOUD.db || h.by !== CLOUD.me) return;
+  const mine = ((CLOUD.docs[CLOUD.me] || {}).items || []).filter(x => CLOUD.me + '_' + x.id !== h.key);
+  CLOUD.docs = { ...CLOUD.docs, [CLOUD.me]: { items: mine } };
+  queueWrite(() => CLOUD.db.doc('hazards/' + CLOUD.me).set({ items: mine }));
+  refreshHazards();
+}
+function ago(ms) {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 1) return 'gerade eben'; if (m < 60) return `vor ${m} Min.`; const h = Math.round(m / 60);
+  if (h < 24) return `vor ${h} Std.`; return `vor ${Math.round(h / 24)} Tagen`;
+}
+function setCloudStatus(kind, text) { const el = $('#cloudStat'); el.classList.toggle('on', kind === 'on'); el.querySelector('span').textContent = text; }
+async function renderComm() {
+  const list = $('#commList'); if (!list) return;
+  const items = allCloudHazards();
+  const routeName = id => (DemoRoutes.list.find(r => r.id === id) || {}).name || id;
+  list.textContent = '';
+  if (!items.length) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Noch keine Einträge. Tippe im Handy auf „Gefahr melden“ und dann auf die Straße.'; list.append(e); return; }
+  const ids = [...new Set(items.map(h => h.by).filter(b => b !== 'local'))];
+  if (CLOUD.user && ids.length) { try { const ps = await CLOUD.user.profiles(ids); for (const id of ids) CLOUD.names[id] = (ps[id] && ps[id].name) || ''; } catch (e) {} }
+  list.textContent = '';
+  for (const h of items) {
+    const t = tally(h.key), gone = isGone(h);
+    const row = document.createElement('div'); row.className = 'crow' + (gone ? ' gone' : '');
+    const top = document.createElement('div'); top.className = 'top';
+    const b = document.createElement('b'); b.textContent = h.kind;
+    const meta = document.createElement('span');
+    const who = h.by === 'local' ? 'du (lokal)' : h.by === CLOUD.me ? 'dir' : (CLOUD.names[h.by] || 'jemand');
+    meta.textContent = `${routeName(h.route)} · km ${fmtKm(h.s)} · von ${who} · ${ago(h.at)}${h.vis === 'group' ? ' · nur Gruppe' : ''}${gone ? ' · wahrscheinlich weg' : ''}`;
+    top.append(b, meta); row.append(top);
+    if (h.note) { const n = document.createElement('div'); n.className = 'note'; n.textContent = h.note; row.append(n); }
+    const acts = document.createElement('div'); acts.className = 'acts';
+    const mk = (label, pressed, fn) => { const x = document.createElement('button'); x.textContent = label; x.setAttribute('aria-pressed', String(pressed)); x.addEventListener('click', fn); acts.append(x); };
+    mk(`Noch da (${t.da})`, t.mine === 1, () => vote(h.key, 1));
+    mk(`Weg (${t.weg})`, t.mine === -1, () => vote(h.key, -1));
+    mk('Hinfahren', false, () => { if (S.routeId !== h.route) loadRoute(h.route); jumpTo(h.s - 220); $('#stage').scrollIntoView({ block: 'start' }); });
+    if (h.by === 'local' || h.by === CLOUD.me) mk('Löschen', false, () => removeMine(h));
+    row.append(acts); list.append(row);
+  }
+}
+async function initCloud() {
+  if (!window.claude || typeof window.claude.use !== 'function') { CLOUD.status = 'offline'; setCloudStatus('off', 'Keine Cloud in dieser Ansicht. Einträge bleiben nur in diesem Fenster.'); renderComm(); return; }
+  let db = null, user = null;
+  try { [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]); } catch (e) {}
+  CLOUD.user = user;
+  if (!db) { setCloudStatus('off', 'Cloud nicht erreichbar (nicht angemeldet?). Einträge bleiben nur in diesem Fenster.'); renderComm(); return; }
+  try { CLOUD.me = user ? await user.id() : null; } catch (e) { CLOUD.me = null; }
+  CLOUD.db = db;
+  if (user && CLOUD.me) { try { const ps = await user.profiles([CLOUD.me]); CLOUD.names[CLOUD.me] = (ps[CLOUD.me] && ps[CLOUD.me].name || '').split(' ')[0]; } catch (e) {} }
+  let confirmed = false;
+  const timer = setTimeout(() => { if (!confirmed) setCloudStatus('off', 'Cloud antwortet noch nicht. Die Liste ist eventuell nicht aktuell.'); }, 10000);
+  const ok = () => {
+    confirmed = true; clearTimeout(timer);
+    const who = CLOUD.names[CLOUD.me] ? ` Angemeldet als ${CLOUD.names[CLOUD.me]}.` : '';
+    setCloudStatus('on', CLOUD.me ? 'Cloud verbunden. Alle Nutzer dieser Seite sehen neue Stellen sofort.' + who : 'Cloud verbunden, nur lesen. Zum Eintragen anmelden.');
+  };
+  db.collection('hazards').onSnapshot(snap => {
+    const docs = {}; snap.docs.forEach(d => { if (d.exists) docs[d.id] = d.data(); });
+    CLOUD.docs = docs; if (!snap.metadata.fromCache) ok(); refreshHazards();
+  }, () => { clearTimeout(timer); setCloudStatus('off', 'Verbindung zur Cloud verloren. Neue Einträge bleiben vorerst lokal.'); CLOUD.db = null; });
+  db.collection('votes').onSnapshot(snap => {
+    const v = {}; snap.docs.forEach(d => { if (d.exists) v[d.id] = d.data(); });
+    CLOUD.votes = v; refreshHazards();
+  }, () => {});
+}
+
+// ---------- Gefahr melden (Seite wie in der Vorlage) ----------
+let placeS = null, placeKind = 'Bodenwelle', placeVis = 'all';
+$('#hzKinds').innerHTML = KINDS.map(k => `<button data-k="${k}" aria-pressed="${k === placeKind}"${k === 'Sonstiges' ? ' class="wide"' : ''}>${k}</button>`).join('');
+$('#hzKinds').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; placeKind = b.dataset.k; $$('#hzKinds button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('#hzSave').textContent = placeKind + ' melden'; });
+seg('#hzVis', v => { placeVis = v; });
+function setPlacing(on) {
+  S.placing = on; $('#placeHint').hidden = !on; $('#pPlanBottom').hidden = on || S.mode !== 'plan'; $('#pPlanTop').hidden = on || S.mode !== 'plan'; $('#btnPlace').hidden = on || S.mode !== 'plan';
+  if (!on) placeS = null;
+}
+function openHazardPage(s) {
+  placeS = s; placeVis = SET.vis; setSeg('#hzVis', placeVis);
+  $('#hzWhere').textContent = `Hier · ${(DemoRoutes.list.find(x => x.id === S.routeId) || {}).name} · km ${fmtKm(s)}`;
+  $('#hzNote2').value = ''; $('#hzSave').textContent = placeKind + ' melden';
+  $('#hzMove').hidden = S.mode !== 'plan';
+  $('#pHazard').hidden = false; $('#placeHint').hidden = true;
+  requestAnimationFrame(drawMiniMap);
+}
+// Kleine Karte mit Pin: Straße um die Stelle, in Fahrtrichtung nach oben
+function drawMiniMap() {
+  const cv = $('#hzMap'); if (!cv || placeS == null) return;
+  const { w: W, h: H, dpr } = setupCanvas(cv); const ctx = cv.getContext('2d');
+  const p = posAt(placeS);
+  const cam = { x: p.x, y: p.y, rot: -(Math.PI / 2 - p.h), scale: dpr / 0.9, cx: W / 2, cy: H * 0.55 };
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#050d20'; ctx.fillRect(0, 0, W, H);
+  const P = S.data.points; const i0 = Math.max(0, Math.floor((placeS - 250) / 5)), i1 = Math.min(P.length - 1, Math.floor((placeS + 250) / 5));
+  ctx.beginPath(); for (let i = i0; i <= i1; i++) { const [x, y] = toScreen(cam, P[i].x, P[i].y); i === i0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.save(); ctx.shadowColor = '#3fd8ff'; ctx.shadowBlur = 14 * dpr; ctx.strokeStyle = 'rgba(63,216,255,.4)'; ctx.lineWidth = 14 * dpr; ctx.stroke(); ctx.restore();
+  ctx.strokeStyle = '#3fd8ff'; ctx.lineWidth = 6 * dpr; ctx.stroke();
+  const [px, py] = toScreen(cam, p.x, p.y);
+  ctx.fillStyle = 'rgba(255,120,90,.3)'; ctx.beginPath(); ctx.arc(px, py, 20 * dpr, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff9a7d'; ctx.beginPath(); ctx.arc(px, py, 10 * dpr, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 4 * dpr, 0, Math.PI * 2); ctx.fill();
+}
+$('#btnPlace').addEventListener('click', () => setPlacing(true));
+$('#placeCancel').addEventListener('click', () => setPlacing(false));
+$('#hzMove').addEventListener('click', () => { $('#pHazard').hidden = true; setPlacing(true); });
+$$('[data-close]').forEach(b => b.addEventListener('click', () => { b.closest('.page').hidden = true; if (b.closest('#pHazard')) setPlacing(false); }));
+$('#phoneMap').addEventListener('click', e => {
+  if (!S.placing || !S.data) return;
+  const cv = $('#phoneMap'), cam = cv._cam; if (!cam) return;
+  const r = cv.getBoundingClientRect(), dpr = cv.width / r.width;
+  const sx = (e.clientX - r.left) * dpr, sy = (e.clientY - r.top) * dpr;
+  let best = Infinity, bestS = 0;
+  for (const p of S.data.points) { const [px, py] = toScreen(cam, p.x, p.y); const d = Math.hypot(px - sx, py - sy); if (d < best) { best = d; bestS = p.s; } }
+  if (best > 28 * dpr) { toast('Bitte direkt auf die Straße tippen.'); return; }
+  openHazardPage(bestS);
+});
+$('#hzSave').addEventListener('click', () => {
+  if (placeS == null) return;
+  if (addHazard(placeS, placeKind, $('#hzNote2').value.trim(), placeVis) === false) return;
+  $('#pHazard').hidden = true; setPlacing(false);
+});
+let toastT = 0;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+function seg(id, fn) {
+  const el = $(id); if (!el) return;
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); fn(b.dataset.v); });
+}
+function setSeg(id, v) { const el = $(id); if (el) el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === v))); }
+seg('#segView', v => { S.view = v; $('#stage').dataset.view = v; requestAnimationFrame(fitAA); });
+seg('#segStyle', v => setStyle(v));
+seg('#segSpeed', v => { S.mult = +v; });
+seg('#segDrive', v => { S.drive = v; S.overWarned.clear(); S.lastNoteId = -1; renderBook(); renderScale(); });
+seg('#segWet', v => { S.wet = v === 'wet'; S.overWarned.clear(); S.lastNoteId = -1; renderBook(); renderScale(); });
+seg('#segSayV', v => { S.sayV = v === 'on'; });
+seg('#segVoice', v => setVoice(v === 'on'));
+seg('#segPreset', v => { S.preset = v; say('Vorsicht! Rechts 2 zieht zu, 100', true); });
+function setStyle(v) { S.style = v; SET.style = v; saveSet(); setSeg('#segStyle', v); setSeg('#vStyle', v); $('#aaStyle').textContent = v === 'rally' ? 'R 3' : 'Text'; S.lastNoteId = -1; }
+function setVoice(on) { S.voice = on; SET.voice = on; saveSet(); setSeg('#segVoice', on ? 'on' : 'off'); $('#aaVoice [data-wave]').style.opacity = on ? 1 : 0.15; if (!on) try { speechSynthesis.cancel(); } catch (e) {} }
+$('#aaStyle').addEventListener('click', () => setStyle(S.style === 'rally' ? 'plain' : 'rally'));
+$('#aaVoice').addEventListener('click', () => setVoice(!S.voice));
+
+function fitAA() { const sc = $('#aaScaler'); const w = sc.getBoundingClientRect().width; if (w) $('#aa').style.transform = `scale(${w / 800})`; }
+window.addEventListener('resize', fitAA);
+if ('ResizeObserver' in window) new ResizeObserver(fitAA).observe($('#aaScaler'));
+
+renderScale();
+$('#voiceLabel').textContent = SET.voiceName; setStyle(SET.style); setVoice(SET.voice);
+loadRoute('pass');
+renderComm();
+initCloud();
+fitAA();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { S.lastNoteId = -1; renderScale(); });
+})();
+</script>
+</body>
+</html>
