@@ -105,7 +105,7 @@ fun HazardsScreen(st: DriveState, controller: DriveController, onBack: () -> Uni
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück", tint = C.Ink) }
             Column {
                 ScreenTitle("Gefahrenstellen")
-                Text(if (st.cloudOnline) "Cloud verbunden · von allen Fahrern" else "Keine Verbindung – zeigt den letzten Stand",
+                Text(if (!controller.cloud.enabled) "Gemeinsame Gefahren noch nicht eingerichtet" else if (st.cloudOnline) "Cloud verbunden · von allen Fahrern" else "Keine Verbindung – zeigt den letzten Stand",
                     color = if (st.cloudOnline) C.Accent else C.Muted, fontSize = 12.sp)
             }
         }

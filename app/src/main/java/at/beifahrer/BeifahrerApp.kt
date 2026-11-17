@@ -10,6 +10,6 @@ class BeifahrerApp : Application() {
     override fun onCreate() {
         super.onCreate()
         controller.connectCloud() // anonyme Anmeldung bei Firebase für die gemeinsamen Gefahrenstellen
-        controller.checkForUpdate() // neue Version auf GitHub?
+        controller.startAutoUpdates() // neue Version auf GitHub? Wird automatisch installiert (nicht während der Fahrt)
     }
 }

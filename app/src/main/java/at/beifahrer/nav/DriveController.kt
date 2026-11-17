@@ -98,6 +98,34 @@ class DriveController(private val app: Application) {
         val u = try { updater.check() } catch (e: Exception) { null }
         _state.update { it.copy(update = u) }
         if (manual) { showMessage(if (u != null) "Neue Version ${u.versionName} verfügbar." else "Du hast die neueste Version."); delay(2500); showMessage(null) }
+        if (u != null) autoUpdate()
+    }
+
+    /** Sucht beim Start und danach alle 30 Minuten nach Updates und installiert sie selbst. */
+    fun startAutoUpdates() = scope.launch {
+        while (true) { checkForUpdate().join(); delay(30 * 60_000L) }
+    }
+
+    private var autoUpdating = false
+
+    /**
+     * Automatisch aktualisieren – aber nie während einer Fahrt (die App startet dabei neu).
+     * Ab Android 12 ohne Nachfrage; beim allerersten Mal fragt Android noch einmal.
+     */
+    private fun autoUpdate() {
+        val st = _state.value
+        if (autoUpdating || st.update == null || st.mode != Mode.IDLE || !updater.canInstall()) return
+        autoUpdating = true
+        scope.launch {
+            try {
+                val file = updater.download(st.update) { p -> _state.update { it.copy(updateProgress = p) } }
+                _state.update { it.copy(updateProgress = null) }
+                if (_state.value.mode == Mode.IDLE) { showMessage("Update wird installiert – Beifahrer startet gleich neu."); updater.installSession(file) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Automatisches Update fehlgeschlagen", e)
+                _state.update { it.copy(updateProgress = null) }
+            } finally { autoUpdating = false }
+        }
     }
 
     /** Lädt das Update und öffnet den Installer. Android fragt einmal nach Erlaubnis. */
@@ -107,7 +135,7 @@ class DriveController(private val app: Application) {
         try {
             val file = updater.download(u) { p -> _state.update { it.copy(updateProgress = p) } }
             _state.update { it.copy(updateProgress = null) }
-            updater.install(file)
+            updater.installSession(file)
         } catch (e: Exception) {
             Log.w(TAG, "Update fehlgeschlagen", e)
             _state.update { it.copy(updateProgress = null) }
@@ -196,6 +224,7 @@ class DriveController(private val app: Application) {
         aiVoice.stop(); prepJob?.cancel()
         spoken.clear()
         _state.update { it.copy(mode = Mode.IDLE, book = null, current = null, upcoming = emptyList(), navStepText = null) }
+        autoUpdate() // ein Update, das während der Fahrt kam, jetzt installieren
     }
 
     /** Route von Google holen, Höhen dazu, Gebetbuch erzeugen. */
@@ -427,7 +456,8 @@ class DriveController(private val app: Application) {
 
     /** Gefahr an einer beliebigen Stelle eintragen (lang auf die Karte drücken). */
     fun reportHazardAt(lat: Double, lng: Double, kind: String, note: String, vis: String = _state.value.settings.vis) {
-        val acc = account.info.value ?: return showMessage("Keine Verbindung zur Cloud – bitte Internet prüfen.")
+        if (!cloud.enabled) return showMessage("Gemeinsame Gefahren sind noch nicht eingerichtet.")
+        val acc = account.info.value ?: return showMessage(if (isOnline()) "Cloud-Anmeldung läuft noch – gleich nochmal versuchen." else "Kein Internet – Meldung nicht gespeichert.")
         if (!acc.google) return showMessage("Zum Eintragen bitte zuerst mit Google anmelden.")
         val group = _state.value.settings.group
         if (vis == "group" && group.isBlank()) return showMessage("Für „Meine Gruppe“ zuerst in den Einstellungen einen Gruppen-Code eintragen.")
@@ -519,10 +549,17 @@ class DriveController(private val app: Application) {
 
     private fun routeError(status: Navigator.RouteStatus) = when (status) {
         Navigator.RouteStatus.NO_ROUTE_FOUND -> "Keine Route gefunden."
-        Navigator.RouteStatus.NETWORK_ERROR -> "Kein Internet."
+        Navigator.RouteStatus.NETWORK_ERROR -> if (isOnline()) "Google-Navigation antwortet nicht (Schlüssel wird evtl. noch freigeschaltet – in 5 Minuten nochmal versuchen)." else "Kein Internet."
         Navigator.RouteStatus.QUOTA_CHECK_FAILED -> "API-Schlüssel oder Kontingent prüfen."
         Navigator.RouteStatus.LOCATION_UNKNOWN -> "Standort unbekannt – GPS an?"
         else -> "Route konnte nicht berechnet werden ($status)."
+    }
+
+    /** Hat das Handy gerade eine Internetverbindung? */
+    private fun isOnline(): Boolean {
+        val cm = app.getSystemService(android.net.ConnectivityManager::class.java) ?: return true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     companion object { private const val TAG = "Beifahrer" }

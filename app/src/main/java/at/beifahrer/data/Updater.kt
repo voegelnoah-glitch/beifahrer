@@ -1,9 +1,14 @@
 package at.beifahrer.data
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import at.beifahrer.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -75,10 +80,49 @@ class Updater(private val context: Context) {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    /** Öffnet den Android-Installer für die heruntergeladene APK. */
+    /**
+     * Installiert die APK über den Android-PackageInstaller. Ab Android 12 darf sich die App selbst
+     * ohne Nachfrage aktualisieren, sobald sie einmal ihr eigenes Update installiert hat.
+     * Verlangt Android trotzdem eine Bestätigung, öffnet [UpdateReceiver] den Dialog.
+     */
+    fun installSession(apk: File) {
+        val installer = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+        val id = installer.createSession(params)
+        installer.openSession(id).use { session ->
+            session.openWrite("beifahrer.apk", 0, apk.length()).use { out ->
+                apk.inputStream().use { it.copyTo(out) }
+                session.fsync(out)
+            }
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
+            val pending = PendingIntent.getBroadcast(context, id, Intent(context, UpdateReceiver::class.java).setPackage(context.packageName), flags)
+            session.commit(pending.intentSender)
+        }
+    }
+
+    /** Öffnet den Android-Installer für die heruntergeladene APK (Reserve, falls die Sitzung nicht geht). */
     fun install(apk: File) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", apk)
         context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
+/** Rückmeldung vom Android-Installer: bei Bedarf den Bestätigungsdialog zeigen. */
+class UpdateReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                @Suppress("DEPRECATION")
+                val confirm: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                    intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java) else intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                confirm?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }
+            PackageInstaller.STATUS_SUCCESS -> Log.i("Beifahrer", "Update installiert")
+            else -> Log.w("Beifahrer", "Update fehlgeschlagen: $status ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
+        }
     }
 }

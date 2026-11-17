@@ -12,6 +12,8 @@
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
     <!-- Selbst-Update: heruntergeladene neue Version installieren dürfen -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Ab Android 12: sich selbst ohne Nachfrage aktualisieren -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:name=".BeifahrerApp"
@@ -46,6 +48,9 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Rückmeldung vom Installer beim Selbst-Update -->
+        <receiver android:name=".data.UpdateReceiver" android:exported="false" />
 
         <!-- Empfängt Abbiege-Infos vom Navigation SDK (für Android Auto) -->
         <service
